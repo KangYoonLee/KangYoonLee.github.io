@@ -136,7 +136,10 @@ h1 span { color: var(--foreground); }
 .institution-name { margin: 0.18rem 0 0.55rem; color: var(--navy); font-size: 0.75rem; font-weight: 600; }
 .experience-detail { max-width: 740px; margin: 0; color: var(--muted); font-size: 0.78rem; line-height: 1.68; }
 
-.publications-section { padding-top: 1.5rem; }
+.publications-section {
+  padding-top: 1.5rem;
+  scroll-margin-top: 3.25rem;
+}
 .publication-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0.9rem; padding: 1.45rem 0; border-bottom: 1px solid var(--border); }
 .publication-index { padding-top: 0.22rem; color: var(--accent); font-size: 0.65rem; font-weight: 700; }
 .publication-row .row-meta { margin-bottom: 0.35rem; }
