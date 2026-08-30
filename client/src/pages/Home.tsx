@@ -76,19 +76,19 @@ const publications = [
     year: "2026",
     venue: "IPIU · Poster",
     title: "Frequency-Aware Multi-Resolution Architecture for High-Resolution Spatiotemporal Map Reconstruction from Sparse Observations",
-    authors: "Eunshik Kim, Kangyoon Lee, Yekwon Kim, Hyungjoo Jung, Heeseung Choi, Igjae Kim, and Haesol Park",
+    authors: <>Eunshik Kim, <strong>Kangyoon Lee</strong>, Yekwon Kim, Hyungjoo Jung, Heeseung Choi, Igjae Kim, and Haesol Park</>,
   },
   {
     year: "2025",
     venue: "IEIE · Poster",
     title: "Learnable Adjacency Matrix Based Spatio-Temporal Graph Convolutional Network for Traffic Prediction",
-    authors: "Yekwon Kim, Eunshik Kim, Kangyoon Lee, Haesol Park, Heeseung Choi, Igjae Kim, and Hyungjoo Jung",
+    authors: <>Yekwon Kim, Eunshik Kim, <strong>Kangyoon Lee</strong>, Haesol Park, Heeseung Choi, Igjae Kim, and Hyungjoo Jung</>,
   },
   {
     year: "2023",
     venue: "NCAEIC · Oral · Best Paper Award",
     title: "A Comparative Study of Synthetic Data with Generative AI Models: Safely Reproducing Sensitive Transportation Worker Data",
-    authors: "Kangyoon Lee, Hanbin Ryou, Jihwan Baek, Sejong Oh, and Illchul Doo",
+    authors: <><strong>Kangyoon Lee</strong>, Hanbin Ryou, Jihwan Baek, Sejong Oh, and Illchul Doo</>,
   },
 ];
 
