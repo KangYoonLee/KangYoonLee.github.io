@@ -25,8 +25,8 @@ const navItems = [
 const experiences = [
   {
     logo: "KIST",
-    institution: "Korea Institute of Science and Technology",
-    role: "Research Intern · AI & Robotics Institute",
+    institution: "Korea Institute of Science and Technology · AI & Robotics Institute",
+    role: "Research Intern",
     title: "Multi-modal Crowd Density Prediction for Public Safety Enhancement",
     period: "Mar. 2025 — May. 2026",
     detail: "Built a multi-modal deep learning pipeline combining network, CCTV, and transportation signals for real-time urban prediction.",
