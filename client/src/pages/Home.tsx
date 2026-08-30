@@ -24,6 +24,7 @@ const experiences = [
     period: "Mar. 2025 — May. 2026",
     detail: "Built a multi-modal deep learning pipeline combining network, CCTV, and transportation signals for real-time urban prediction.",
     tone: "red",
+    logoImage: "/assets/kist.png",
   },
   {
     logo: "HSU",
@@ -33,6 +34,7 @@ const experiences = [
     period: "Jun. 2024 — Jun. 2025",
     detail: "Embedded Bayesian Network-derived feature causality into CTGAN to make synthetic data generation intrinsically explainable.",
     tone: "blue",
+    logoImage: "/assets/hansung.png",
   },
   {
     logo: "HUFS",
@@ -42,6 +44,7 @@ const experiences = [
     period: "Mar. 2024 — Oct. 2024",
     detail: "Developed an adaptive multipath forwarding algorithm through traffic–infrastructure causal modeling.",
     tone: "navy",
+    logoImage: "/assets/hufs.gif",
   },
   {
     logo: "HUFS",
@@ -51,6 +54,7 @@ const experiences = [
     period: "Sep. 2023 — Dec. 2023",
     detail: "Benchmarked GAN, CTGAN, and VAE architectures for preserving temporal and structural relationships in multivariate data.",
     tone: "navy",
+    logoImage: "/assets/hufs.gif",
   },
   {
     logo: "HUFS",
@@ -60,6 +64,7 @@ const experiences = [
     period: "Sep. 2022 — May. 2023",
     detail: "Validated temporal causality in traffic patterns with LSTM-based prediction on a Raspberry Pi LAN testbed.",
     tone: "navy",
+    logoImage: "/assets/hufs.gif",
   },
 ];
 
@@ -135,7 +140,13 @@ export default function Home() {
           <div className="experience-list">
             {experiences.map((experience) => (
               <article className="experience-row" key={experience.title}>
-                <div className={`institution-logo ${experience.tone}`}>{experience.logo}</div>
+                <div className={`institution-logo ${experience.tone}`}>
+                  {experience.logoImage ? (
+                    <img src={experience.logoImage} alt={`${experience.institution} logo`} />
+                  ) : (
+                    experience.logo
+                  )}
+                </div>
                 <div className="experience-body">
                   <div className="row-meta"><span>{experience.role}</span><time>{experience.period}</time></div>
                   <h3>{experience.title}</h3>
