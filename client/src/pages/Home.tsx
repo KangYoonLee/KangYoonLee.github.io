@@ -2,7 +2,7 @@
  * Design system: a restrained al-folio-inspired academic page — one clear
  * reading column, compact records, direct links, and no decorative chrome.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, Download, Github, Linkedin, Mail, Moon, Sun } from "lucide-react";
 
 const portraits = [
@@ -103,22 +103,9 @@ function SectionTitle({ title }: { title: string }) {
 export default function Home() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("kangyoon-theme") === "dark");
   const [photoIndex, setPhotoIndex] = useState(0);
-  const dragStartX = useRef<number | null>(null);
 
   const changePhoto = (direction: 1 | -1) => {
     setPhotoIndex((current) => (current + direction + portraits.length) % portraits.length);
-  };
-
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    dragStartX.current = event.clientX;
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (dragStartX.current === null) return;
-    const distance = event.clientX - dragStartX.current;
-    if (Math.abs(distance) > 45) changePhoto(distance < 0 ? 1 : -1);
-    dragStartX.current = null;
   };
 
   const handlePhotoKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -159,9 +146,7 @@ export default function Home() {
               aria-roledescription="carousel"
               tabIndex={0}
               onKeyDown={handlePhotoKeyDown}
-              onPointerDown={handlePointerDown}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={() => { dragStartX.current = null; }}
+              onClick={() => changePhoto(1)}
             >
               <img src={portraits[photoIndex]} alt={`Kangyoon Lee profile photo ${photoIndex + 1}`} draggable={false} />
               <div className="photo-dots" aria-label="Choose profile photo">
@@ -172,8 +157,10 @@ export default function Home() {
                     key={portrait}
                     aria-label={`Show profile photo ${index + 1}`}
                     aria-current={index === photoIndex ? "true" : undefined}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={() => setPhotoIndex(index)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPhotoIndex(index);
+                    }}
                   />
                 ))}
               </div>
