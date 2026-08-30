@@ -36,7 +36,7 @@ const experiences = [
   {
     logo: "HSU",
     institution: "Hansung University · AI Education Institute",
-    role: "Research Project",
+    role: "Research Project Header",
     title: "Extracting Structural Causality in Data Feature Dependencies",
     period: "Jun. 2024 — Jun. 2025",
     detail: "Embedded Bayesian Network-derived feature causality into CTGAN to make synthetic data generation intrinsically explainable.",
@@ -46,7 +46,7 @@ const experiences = [
   {
     logo: "HUFS",
     institution: "Hankuk University of Foreign Studies · Information Systems Lab",
-    role: "Undergraduate Research",
+    role: "Undergraduate Researcher",
     title: "Modeling Physical Infrastructure Causality for Adaptive Traffic Routing",
     period: "Mar. 2024 — Oct. 2024",
     detail: "Developed an adaptive multipath forwarding algorithm through traffic–infrastructure causal modeling.",
@@ -56,7 +56,7 @@ const experiences = [
   {
     logo: "HUFS",
     institution: "Hankuk University of Foreign Studies · AI Education Institute",
-    role: "Undergraduate Research",
+    role: "Undergraduate Researcher",
     title: "Benchmarking Generative Models for Data Synthesis",
     period: "Sep. 2023 — Dec. 2023",
     detail: "Benchmarked GAN, CTGAN, and VAE architectures for preserving temporal and structural relationships in multivariate data.",
@@ -66,7 +66,7 @@ const experiences = [
   {
     logo: "HUFS",
     institution: "Hankuk University of Foreign Studies · Mobile Distributed Computing Lab",
-    role: "Undergraduate Research",
+    role: "Undergraduate Researcher",
     title: "Uncovering Temporal Causality in Network Traffic Patterns",
     period: "Sep. 2022 — May. 2023",
     detail: "Validated temporal causality in traffic patterns with LSTM-based prediction on a Raspberry Pi LAN testbed.",
@@ -90,7 +90,7 @@ const publications = [
   },
   {
     year: "2023",
-    venue: "ICAEIC · Oral · Best Paper Award",
+    venue: "ICAEIC · Oral · Best Paper Award(1/95)",
     title: "A Comparative Study of Synthetic Data with Generative AI Models: Safely Reproducing Sensitive Transportation Worker Data",
     authors: <><strong>Kangyoon Lee</strong>, Hanbin Ryou, Jihwan Baek, Sejong Oh, and Illchul Doo</>,
   },
