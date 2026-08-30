@@ -102,6 +102,8 @@ h1 span { color: var(--foreground); }
 .institution-logo { display: grid; width: 54px; height: 54px; place-items: center; border-radius: 0.3rem; background: var(--surface); color: var(--navy); font-size: 0.62rem; font-weight: 700; letter-spacing: -0.04em; box-shadow: 0 1px 5px rgba(0,0,0,0.07); }
 .institution-logo.red { color: var(--foreground); }
 .institution-logo.blue { color: #346d9d; }
+.institution-logo img { width: 100%; height: 100%; padding: 0.35rem; object-fit: contain; }
+.dark .institution-logo img { background: #ffffff; }
 .dark .institution-logo { box-shadow: none; border: 1px solid var(--border); }
 .experience-body { min-width: 0; }
 .row-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.28rem; color: var(--accent); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
