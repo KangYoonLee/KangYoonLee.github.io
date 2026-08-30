@@ -91,7 +91,13 @@ h1 span { color: var(--foreground); }
 .social-links a:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
 .social-links a:active { transform: scale(0.97); }
 .hero-photo-wrap { width: 100%; max-width: 350px; justify-self: end; }
-.hero-photo { width: 100%; overflow: hidden; border-radius: 0.7rem; background: var(--surface-soft); }
+.hero-photo { position: relative; width: 100%; overflow: hidden; border-radius: 0.7rem; background: var(--surface-soft); cursor: grab; touch-action: pan-y; user-select: none; }
+.hero-photo:active { cursor: grabbing; }
+.hero-photo:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.photo-dots { position: absolute; right: 0; bottom: 0.85rem; left: 0; display: flex; justify-content: center; gap: 0.42rem; }
+.photo-dot { width: 0.46rem; height: 0.46rem; padding: 0; border: 1px solid #ffffff; border-radius: 50%; background: rgba(255,255,255,0.72); box-shadow: 0 1px 3px rgba(0,0,0,0.22); transition: transform 160ms ease, background 160ms ease; }
+.photo-dot.is-active { transform: scale(1.18); background: var(--accent); }
+.photo-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .hero-photo img { width: 100%; aspect-ratio: 0.81; object-fit: cover; object-position: center 30%; }
 
 .content-section { padding: clamp(4.8rem, 9vw, 7.5rem) 0; }
