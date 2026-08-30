@@ -90,7 +90,7 @@ const publications = [
   },
   {
     year: "2023",
-    venue: "NCAEIC · Oral · Best Paper Award",
+    venue: "ICAEIC · Oral · Best Paper Award",
     title: "A Comparative Study of Synthetic Data with Generative AI Models: Safely Reproducing Sensitive Transportation Worker Data",
     authors: "Kangyoon Lee, Hanbin Ryou, Jihwan Baek, Sejong Oh, and Illchul Doo",
   },
