@@ -109,7 +109,7 @@ h1 span { color: var(--foreground); }
 .content-section { padding: clamp(4.8rem, 9vw, 7.5rem) 0; }
 .research-quote { max-width: 860px; margin: clamp(1.8rem, 3.5vw, 2.7rem) auto 0; padding: 0 1.5rem; border: 0; text-align: center; }
 .research-quote p { margin: 0; color: var(--foreground); font-family: Georgia, "Times New Roman", serif; font-style: italic; line-height: 1.55; }
-.research-quote .quote-original, .research-quote .quote-english { font-size: clamp(1.08rem, 2.15vw, 1.38rem); }
+.research-quote .quote-original, .research-quote .quote-english { font-size: clamp(0.96rem, 1.7vw, 1.16rem); }
 .research-quote .quote-english { margin-top: 0.72rem; }
 .research-quote cite { display: block; margin-top: 1.1rem; color: var(--muted); font-family: var(--sans); font-size: 0.78rem; font-style: normal; letter-spacing: 0.01em; }
 .section-title { display: block; margin-bottom: 2.2rem; }
