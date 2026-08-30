@@ -9,6 +9,10 @@ const portraits = [
   "/assets/kangyoon-lee-photo.webp",
   "/assets/kangyoon-lee-photo-2.jpg",
 ];
+const portraitCaptions = [
+  "On my way to a deep learning course.",
+  "Climbing at JHU's Ralph S. O'Connor Recreation Center.",
+];
 const cvFile = "/assets/Kangyoon-Lee-CV.pdf";
 
 const navItems = [
@@ -21,8 +25,8 @@ const navItems = [
 const experiences = [
   {
     logo: "KIST",
-    institution: "Korea Institute of Science and Technology · AI & Robotics Institute",
-    role: "Research Intern",
+    institution: "Korea Institute of Science and Technology",
+    role: "Research Intern · AI & Robotics Institute",
     title: "Multi-modal Crowd Density Prediction for Public Safety Enhancement",
     period: "Mar. 2025 — May. 2026",
     detail: "Built a multi-modal deep learning pipeline combining network, CCTV, and transportation signals for real-time urban prediction.",
@@ -76,19 +80,19 @@ const publications = [
     year: "2026",
     venue: "IPIU · Poster",
     title: "Frequency-Aware Multi-Resolution Architecture for High-Resolution Spatiotemporal Map Reconstruction from Sparse Observations",
-    authors: <>Eunshik Kim, <strong>Kangyoon Lee</strong>, Yekwon Kim, Hyungjoo Jung, Heeseung Choi, Igjae Kim, and Haesol Park</>,
+    authors: "Eunshik Kim, Kangyoon Lee, Yekwon Kim, Hyungjoo Jung, Heeseung Choi, Igjae Kim, and Haesol Park",
   },
   {
     year: "2025",
     venue: "IEIE · Poster",
     title: "Learnable Adjacency Matrix Based Spatio-Temporal Graph Convolutional Network for Traffic Prediction",
-    authors: <>Yekwon Kim, Eunshik Kim, <strong>Kangyoon Lee</strong>, Haesol Park, Heeseung Choi, Igjae Kim, and Hyungjoo Jung</>,
+    authors: "Yekwon Kim, Eunshik Kim, Kangyoon Lee, Haesol Park, Heeseung Choi, Igjae Kim, and Hyungjoo Jung",
   },
   {
     year: "2023",
-    venue: "ICAEIC · Oral · Best Paper Award",
+    venue: "NCAEIC · Oral · Best Paper Award",
     title: "A Comparative Study of Synthetic Data with Generative AI Models: Safely Reproducing Sensitive Transportation Worker Data",
-    authors: <><strong>Kangyoon Lee</strong>, Hanbin Ryou, Jihwan Baek, Sejong Oh, and Illchul Doo</>,
+    authors: "Kangyoon Lee, Hanbin Ryou, Jihwan Baek, Sejong Oh, and Illchul Doo",
   },
 ];
 
@@ -133,9 +137,10 @@ export default function Home() {
 
       <main id="home">
         <section className="hero">
-          <div className="hero-copy">
+          <div className="hero-intro-layout">
+            <div className="hero-copy">
             <h1>Kangyoon (Kay) Lee</h1>
-            <p className="bio">I&apos;m a Ph.D. student in the Department of Computer Science at <a href="https://engineering.jhu.edu/" target="_blank" rel="noreferrer">Johns Hopkins University</a> under the supervision of <a href="http://soudeh.net/#bio" target="_blank" rel="noreferrer">Dr. Soudeh Ghorbani</a>. Prior to joining JHU, I worked as a Data Engineer at the AI and Robotics Institute of the <a href="https://www.kist.re.kr/eng/" target="_blank" rel="noreferrer">Korea Institute of Science and Technology</a> (KIST). I received my B.Eng. in Information and Communications Engineering from <a href="https://www.hufs.ac.kr/" target="_blank" rel="noreferrer">Hankuk University of Foreign Studies</a> (HUFS).</p>
+            <p className="bio">I&apos;m a Ph.D. student in the Department of Computer Science at <a href="https://engineering.jhu.edu/" target="_blank" rel="noreferrer">Johns Hopkins University</a> under the supervision of <a href="http://soudeh.net/#bio" target="_blank" rel="noreferrer">Dr. Soudeh Ghorbani</a>. Prior to joining JHU, I received my B.Eng. in Information and Communications Engineering from <a href="https://www.hufs.ac.kr/" target="_blank" rel="noreferrer">Hankuk University of Foreign Studies</a> (HUFS). I also worked as a Data Engineer at the AI and Robotics Institute of the <a href="https://www.kist.re.kr/eng/" target="_blank" rel="noreferrer">Korea Institute of Science and Technology</a> (KIST).</p>
             <p className="bio">My research establishes causal domain knowledge underlying network traffic patterns—spanning temporal user behaviors, physical infrastructure interactions, and structural feature dependencies. By embedding these causal principles as a priori constraints within predictive models, I build trustworthy AI systems that enable proactive congestion control in datacenters, explainable anomaly prediction, and real-time QoS guarantees.</p>
           </div>
           <div className="hero-photo-wrap">
@@ -148,7 +153,13 @@ export default function Home() {
               onKeyDown={handlePhotoKeyDown}
               onClick={() => changePhoto(1)}
             >
-              <img src={portraits[photoIndex]} alt={`Kangyoon Lee profile photo ${photoIndex + 1}`} draggable={false} />
+              <img
+                key={portraits[photoIndex]}
+                className="photo-image"
+                src={portraits[photoIndex]}
+                alt={`Kangyoon Lee profile photo ${photoIndex + 1}`}
+                draggable={false}
+              />
               <div className="photo-dots" aria-label="Choose profile photo">
                 {portraits.map((portrait, index) => (
                   <button
@@ -165,12 +176,20 @@ export default function Home() {
                 ))}
               </div>
             </div>
+            <p className="photo-caption" aria-live="polite">{portraitCaptions[photoIndex]}</p>
             <div className="social-links" aria-label="External profiles">
               <a href="https://github.com/KangYoonLee" target="_blank" rel="noreferrer"><Github size={16} /> GitHub <ArrowUpRight size={13} /></a>
               <a href="https://www.linkedin.com/in/kangyoon-lee-a5141427a/" target="_blank" rel="noreferrer"><Linkedin size={16} /> LinkedIn <ArrowUpRight size={13} /></a>
               <a href="mailto:klee320@jh.edu"><Mail size={16} /> Email</a>
             </div>
           </div>
+          </div>
+
+        <blockquote className="research-quote">
+          <p className="quote-original">Bouloimēn an mallon hen aitiologian heurein ē tēn Persōn basileian genesthai moi.</p>
+          <p className="quote-english">“I would rather discover one cause than gain the kingdom of Persia.”</p>
+          <cite>— Democritus <span>(5th-century BCE Greek philosopher)</span></cite>
+        </blockquote>
         </section>
 
         <section id="research" className="content-section">
