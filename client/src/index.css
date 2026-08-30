@@ -1,0 +1,166 @@
+/*
+ * Causal Cartography, simplified: al-folio-inspired academic editorial layout.
+ * The page prioritizes a single readable column, compact records, direct links,
+ * and a calm daytime/nighttime color system over decorative chrome.
+ */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "DM Sans", Arial, sans-serif;
+  --font-serif: "Libre Baskerville", Georgia, serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --background: #fbfbfa;
+  --surface: #ffffff;
+  --surface-soft: #f4f4f2;
+  --foreground: #000000;
+  --muted: #555555;
+  --border: #e2e2e2;
+  --accent: #0000ff;
+  --accent-soft: #eeeeff;
+  --navy: #000000;
+  --primary: var(--navy);
+  --primary-foreground: #ffffff;
+  --ring: var(--accent);
+  --radius: 0.45rem;
+}
+
+.dark {
+  --background: #353535;
+  --surface: #3e3e3e;
+  --surface-soft: #454545;
+  --foreground: #f1f0ed;
+  --muted: #b1b2b1;
+  --border: #34383c;
+  --accent: #ffb000;
+  --accent-soft: #4b3d22;
+  --navy: #ffffff;
+  --primary: var(--navy);
+  --primary-foreground: #151719;
+  --ring: var(--accent);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; color: var(--foreground); background: var(--background); font-family: "DM Sans", Arial, sans-serif; font-size: 16px; line-height: 1.7; transition: color 180ms ease, background 180ms ease; }
+body::before { position: fixed; z-index: -1; inset: 0; content: ""; pointer-events: none; opacity: 0.22; background-image: radial-gradient(var(--foreground) 0.35px, transparent 0.35px); background-size: 7px 7px; }
+.dark body::before { opacity: 0.08; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; }
+img { display: block; max-width: 100%; }
+button, a { -webkit-tap-highlight-color: transparent; }
+
+.page { min-height: 100vh; }
+.topbar { position: sticky; z-index: 20; top: 0; display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 70px; padding: 0 max(24px, calc((100% - 1080px) / 2)); border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--background) 93%, transparent); backdrop-filter: blur(12px); }
+.wordmark { font-size: 0.91rem; font-weight: 700; letter-spacing: -0.03em; }
+.topbar nav { display: flex; align-items: center; gap: clamp(1.05rem, 2.6vw, 2rem); margin-left: auto; margin-right: 2rem; }
+.topbar nav a { color: var(--muted); font-size: 0.78rem; font-weight: 500; text-transform: uppercase; transition: color 160ms ease; }
+.topbar nav a:hover { color: var(--accent); }
+.theme-toggle { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.45rem 0; border: 0; color: var(--muted); background: transparent; font-size: 0.72rem; cursor: pointer; transition: color 160ms ease, transform 160ms ease; }
+.theme-toggle:hover { color: var(--accent); }
+.theme-toggle:active { transform: scale(0.97); }
+
+main { width: min(1080px, calc(100% - 48px)); margin: 0 auto; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: clamp(3rem, 8vw, 7.5rem); align-items: center; padding: clamp(5.2rem, 10vw, 8.7rem) 0 clamp(5rem, 9vw, 8rem); border-bottom: 1px solid var(--border); }
+.hero-copy { max-width: 650px; }
+.kicker, .section-title p { margin: 0 0 1rem; color: var(--accent); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; }
+h1, h2, h3 { margin-top: 0; }
+h1, .section-title h2, .cv-section h2 { font-family: "Libre Baskerville", Georgia, serif; font-weight: 400; letter-spacing: -0.045em; }
+h1 { margin-bottom: 1.3rem; font-size: clamp(2.8rem, 5.8vw, 4.65rem); line-height: 1.1; font-weight: 700; }
+h1 span { color: var(--foreground); }
+.topic-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.75rem; }
+.topic-list span { padding: 0.18rem 0.57rem; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: 999px; color: var(--accent); font-size: 0.69rem; font-weight: 500; }
+.bio { max-width: 660px; margin: 0 0 1rem; color: var(--muted); font-size: 0.95rem; line-height: 1.85; }
+.bio a { color: var(--navy); font-weight: 600; border-bottom: 1px solid color-mix(in srgb, var(--navy) 45%, transparent); transition: color 160ms ease; }
+.bio a:hover { color: var(--accent); }
+.social-links { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.75rem; }
+.social-links a { display: inline-flex; align-items: center; gap: 0.36rem; padding: 0.48rem 0.72rem; border: 1px solid var(--border); border-radius: 0.35rem; color: var(--navy); font-size: 0.72rem; font-weight: 600; background: var(--surface); transition: border-color 160ms ease, color 160ms ease, transform 160ms ease; }
+.social-links a:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+.social-links a:active { transform: scale(0.97); }
+.hero-photo-wrap { width: 100%; max-width: 350px; justify-self: end; }
+.hero-photo { width: 100%; overflow: hidden; border-radius: 0.7rem; background: var(--surface-soft); }
+.hero-photo img { width: 100%; aspect-ratio: 0.81; object-fit: cover; object-position: center 30%; }
+
+.content-section { padding: clamp(4.8rem, 9vw, 7.5rem) 0; }
+.section-title { display: block; margin-bottom: 2.2rem; }
+.section-title h2 { margin: 0; color: var(--foreground); font-size: clamp(2rem, 4vw, 3.1rem); line-height: 1.2; text-align: left; }
+.experience-list, .publication-list { border-top: 1px solid var(--border); }
+.experience-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 1.3rem; padding: 1.65rem 0; border-bottom: 1px solid var(--border); }
+.institution-logo { display: grid; width: 54px; height: 54px; place-items: center; border-radius: 0.3rem; background: var(--surface); color: var(--navy); font-size: 0.62rem; font-weight: 700; letter-spacing: -0.04em; box-shadow: 0 1px 5px rgba(0,0,0,0.07); }
+.institution-logo.red { color: var(--foreground); }
+.institution-logo.blue { color: #346d9d; }
+.dark .institution-logo { box-shadow: none; border: 1px solid var(--border); }
+.experience-body { min-width: 0; }
+.row-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.28rem; color: var(--accent); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.row-meta time { flex: none; color: var(--muted); font-size: 0.65rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.experience-row h3, .publication-row h3 { margin: 0; color: var(--foreground); font-size: 1.04rem; font-weight: 700; letter-spacing: -0.035em; line-height: 1.45; text-align: left; }
+.institution-name { margin: 0.18rem 0 0.55rem; color: var(--navy); font-size: 0.75rem; font-weight: 600; }
+.experience-detail { max-width: 740px; margin: 0; color: var(--muted); font-size: 0.78rem; line-height: 1.68; }
+
+.publications-section { padding-top: 1.5rem; }
+.publication-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0.9rem; padding: 1.45rem 0; border-bottom: 1px solid var(--border); }
+.publication-index { padding-top: 0.22rem; color: var(--accent); font-size: 0.65rem; font-weight: 700; }
+.publication-row .row-meta { margin-bottom: 0.35rem; }
+.publication-row h3 { font-size: 0.97rem; }
+.publication-row p { max-width: 850px; margin: 0.48rem 0 0; color: var(--muted); font-size: 0.72rem; line-height: 1.6; }
+
+.cv-section { display: flex; align-items: center; justify-content: space-between; gap: 2rem; margin: 1.2rem 0 5.8rem; padding: 2.1rem 2.2rem; border: 1px solid var(--border); border-radius: 0.55rem; background: var(--surface-soft); }
+.cv-section .kicker { margin-bottom: 0.5rem; }
+.cv-section h2 { margin: 0; font-size: clamp(1.35rem, 2.5vw, 2rem); line-height: 1.35; }
+.cv-button { display: inline-flex; flex: none; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: 1px solid var(--accent); border-radius: 0.35rem; color: #fff; background: var(--accent); font-size: 0.77rem; font-weight: 700; transition: background 160ms ease, border-color 160ms ease, transform 160ms ease; }
+.cv-button:hover { border-color: var(--navy); background: var(--navy); transform: translateY(-2px); }
+.cv-button:active { transform: scale(0.97); }
+.footer { display: flex; justify-content: space-between; gap: 1rem; width: min(1080px, calc(100% - 48px)); margin: 0 auto; padding: 1.3rem 0 2rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.67rem; }
+.footer span:last-child { text-align: right; }
+
+@media (max-width: 760px) {
+  .topbar { min-height: 62px; padding: 0 1rem; }
+  .wordmark { font-size: 0.83rem; }
+  .topbar nav { gap: 0.8rem; margin-right: 0.95rem; }
+  .topbar nav a { font-size: 0.58rem; }
+  .theme-toggle { gap: 0.25rem; }
+  .theme-toggle span { display: none; }
+  main, .footer { width: min(100% - 32px, 600px); }
+  .hero { grid-template-columns: 1fr; gap: 2.15rem; padding: 2.9rem 0 4rem; }
+  .hero-photo-wrap { order: -1; width: min(100%, 310px); justify-self: start; }
+  .hero-photo { width: 100%; }
+  .hero-photo img { aspect-ratio: 1 / 1.14; }
+  h1 { font-size: clamp(2.4rem, 11vw, 3.5rem); }
+  .bio { font-size: 0.87rem; line-height: 1.8; }
+  .social-links { margin-top: 1.45rem; }
+  .content-section { padding: 4.3rem 0; }
+  .publications-section { padding-top: 0.5rem; }
+  .section-title { display: block; margin-bottom: 1.7rem; }
+  .experience-row { grid-template-columns: 46px minmax(0, 1fr); gap: 0.9rem; padding: 1.35rem 0; }
+  .institution-logo { width: 43px; height: 43px; font-size: 0.5rem; }
+  .row-meta { display: block; font-size: 0.58rem; line-height: 1.55; }
+  .row-meta time { display: block; margin-top: 0.12rem; }
+  .experience-row h3, .publication-row h3 { font-size: 0.91rem; line-height: 1.47; }
+  .institution-name { font-size: 0.68rem; line-height: 1.5; }
+  .experience-detail { font-size: 0.71rem; line-height: 1.65; }
+  .publication-row { grid-template-columns: 28px minmax(0, 1fr); gap: 0.65rem; padding: 1.25rem 0; }
+  .publication-row p { font-size: 0.67rem; }
+  .cv-section { display: block; margin: 0 0 4rem; padding: 1.5rem; }
+  .cv-section h2 { margin-bottom: 1.25rem; font-size: 1.3rem; }
+  .cv-button { width: max-content; }
+  .footer { display: block; padding-bottom: 1.5rem; }
+  .footer span { display: block; }
+  .footer span:last-child { margin-top: 0.4rem; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
