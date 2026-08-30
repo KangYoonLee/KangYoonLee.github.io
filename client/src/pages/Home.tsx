@@ -2,10 +2,13 @@
  * Design system: a restrained al-folio-inspired academic page — one clear
  * reading column, compact records, direct links, and no decorative chrome.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Download, Github, Linkedin, Mail, Moon, Sun } from "lucide-react";
 
-const portrait = "/assets/kangyoon-lee-photo.webp";
+const portraits = [
+  "/assets/kangyoon-lee-photo.webp",
+  "/assets/kangyoon-lee-photo-2.jpg",
+];
 const cvFile = "/assets/Kangyoon-Lee-CV.pdf";
 
 const navItems = [
@@ -99,6 +102,29 @@ function SectionTitle({ title }: { title: string }) {
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("kangyoon-theme") === "dark");
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const dragStartX = useRef<number | null>(null);
+
+  const changePhoto = (direction: 1 | -1) => {
+    setPhotoIndex((current) => (current + direction + portraits.length) % portraits.length);
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragStartX.current = event.clientX;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragStartX.current === null) return;
+    const distance = event.clientX - dragStartX.current;
+    if (Math.abs(distance) > 45) changePhoto(distance < 0 ? 1 : -1);
+    dragStartX.current = null;
+  };
+
+  const handlePhotoKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowRight") changePhoto(1);
+    if (event.key === "ArrowLeft") changePhoto(-1);
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -126,7 +152,32 @@ export default function Home() {
             <p className="bio">My research establishes causal domain knowledge underlying network traffic patterns—spanning temporal user behaviors, physical infrastructure interactions, and structural feature dependencies. By embedding these causal principles as a priori constraints within predictive models, I build trustworthy AI systems that enable proactive congestion control in datacenters, explainable anomaly prediction, and real-time QoS guarantees.</p>
           </div>
           <div className="hero-photo-wrap">
-            <div className="hero-photo"><img src={portrait} alt="Kangyoon Lee" /></div>
+            <div
+              className="hero-photo"
+              role="region"
+              aria-label="Profile photos"
+              aria-roledescription="carousel"
+              tabIndex={0}
+              onKeyDown={handlePhotoKeyDown}
+              onPointerDown={handlePointerDown}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={() => { dragStartX.current = null; }}
+            >
+              <img src={portraits[photoIndex]} alt={`Kangyoon Lee profile photo ${photoIndex + 1}`} draggable={false} />
+              <div className="photo-dots" aria-label="Choose profile photo">
+                {portraits.map((portrait, index) => (
+                  <button
+                    className={`photo-dot ${index === photoIndex ? "is-active" : ""}`}
+                    type="button"
+                    key={portrait}
+                    aria-label={`Show profile photo ${index + 1}`}
+                    aria-current={index === photoIndex ? "true" : undefined}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => setPhotoIndex(index)}
+                  />
+                ))}
+              </div>
+            </div>
             <div className="social-links" aria-label="External profiles">
               <a href="https://github.com/KangYoonLee" target="_blank" rel="noreferrer"><Github size={16} /> GitHub <ArrowUpRight size={13} /></a>
               <a href="https://www.linkedin.com/in/kangyoon-lee-a5141427a/" target="_blank" rel="noreferrer"><Linkedin size={16} /> LinkedIn <ArrowUpRight size={13} /></a>
