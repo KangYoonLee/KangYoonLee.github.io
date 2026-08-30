@@ -7,7 +7,7 @@ import { ArrowUpRight, Download, Github, Linkedin, Mail, Moon, Sun } from "lucid
 
 const portraits = [
   "/assets/kangyoon-lee-photo.webp",
-  "/assets/kangyoon-lee-photo-2.jpg",
+  "/assets/kangyoon-lee-photo-2.webp",
 ];
 const portraitCaptions = [
   "On my way to a deep learning course.",
