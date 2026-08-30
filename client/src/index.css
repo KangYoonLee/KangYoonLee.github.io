@@ -31,6 +31,7 @@
   --border: #e2e2e2;
   --accent: #0000ff;
   --accent-soft: #eeeeff;
+  --keyword-bg: #315d8d;
   --navy: #000000;
   --primary: var(--navy);
   --primary-foreground: #ffffff;
@@ -47,6 +48,7 @@
   --border: #34383c;
   --accent: #ffb000;
   --accent-soft: #4b3d22;
+  --keyword-bg: #9b6800;
   --navy: #ffffff;
   --primary: var(--navy);
   --primary-foreground: #151719;
@@ -82,6 +84,8 @@ h1, h2, h3 { margin-top: 0; }
 h1, .section-title h2, .cv-section h2 { font-family: "Libre Baskerville", Georgia, serif; font-weight: 400; letter-spacing: -0.045em; }
 h1 { margin-bottom: 1.3rem; font-size: clamp(1.75rem, 5.2vw, 3.75rem); line-height: 1.1; font-weight: 700; white-space: nowrap; }
 h1 span { color: var(--foreground); }
+.research-keywords { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: -0.45rem 0 1.65rem; }
+.research-keywords span { display: inline-flex; align-items: center; padding: 0.48rem 0.82rem; border: 1px solid var(--keyword-bg); border-radius: 999px; color: #ffffff; background: var(--keyword-bg); font-size: 0.74rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1; white-space: nowrap; }
 .topic-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.75rem; }
 .topic-list span { padding: 0.18rem 0.57rem; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: 999px; color: var(--accent); font-size: 0.69rem; font-weight: 500; }
 .bio { max-width: 660px; margin: 0 0 1rem; color: var(--muted); font-size: 0.95rem; line-height: 1.85; }
@@ -159,6 +163,8 @@ h1 span { color: var(--foreground); }
   .hero-photo { width: 100%; }
   .hero-photo img { aspect-ratio: 1 / 1.14; }
   h1 { font-size: clamp(1.72rem, 8.8vw, 2.85rem); white-space: nowrap; }
+  .research-keywords { gap: 0.42rem; margin-bottom: 1.5rem; }
+  .research-keywords span { padding: 0.44rem 0.68rem; font-size: 0.67rem; }
   .bio { font-size: 0.87rem; line-height: 1.8; }
   .social-links { margin-top: 1.45rem; }
   .content-section { padding: 4.3rem 0; }
