@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Controls from './components/Controls';
 import Canvas from './components/Canvas';
 import Sidebar from './components/Sidebar';
+import NetworkLens from './components/NetworkLens';
 import GoalModal from './components/GoalModal';
 import { OP_CFG, spdInc, spdPct, pctToPos, SPD_DEFAULT } from './engine/constants';
 import { mkData } from './engine/dataModel';
@@ -64,6 +65,7 @@ export default function App() {
   const [view, setView] = useState(init.view);
   const [placement, setPlacement] = useState(init.placement);
   const [phase, setPhase] = useState('idle');
+  const [learningMode, setLearningMode] = useState('learn');
   const [modalOpen, setModalOpen] = useState(false);
   const [sbExpanded, setSbExpanded] = useState(false);
   const [, forceUpdate] = useState(0);
@@ -316,6 +318,15 @@ export default function App() {
 
   return (
     <>
+      <header className="cs-header">
+        <div className="cs-brand"><span className="cs-brandmark">C</span>
+          <div className="cs-brandtext"><strong>CollectiveScope</strong><small>From GPU collectives to AI datacenter traffic</small></div>
+        </div>
+        <nav className="cs-tabs" role="tablist" aria-label="Explore mode">
+          <button type="button" role="tab" aria-selected={learningMode==='learn'} onClick={()=>setLearningMode('learn')}>{lang==='ko'?'학습 / Learn':'Learn'}</button>
+          <button type="button" role="tab" aria-selected={learningMode==='lens'} onClick={()=>setLearningMode('lens')}>{lang==='ko'?'분석 / Network Lens':'Network Lens'}</button>
+        </nav>
+      </header>
       <Controls
         op={op} alg={alg} G={G} C={C} speedPos={speedPos} phase={phase}
         onOpChange={handleOpChange} onAlgChange={handleAlgChange}
@@ -331,7 +342,8 @@ export default function App() {
       />
       <div className="main">
         <Canvas stateRef={stateRef} />
-        <Sidebar stateRef={stateRef} onShowGoal={() => { trackEvent('open_goal_modal', { operation: op }); setModalOpen(true); }} expanded={sbExpanded} onToggle={() => { trackEvent('toggle_sidebar', { action: sbExpanded ? 'hide' : 'show' }); setSbExpanded(!sbExpanded); }} />
+        {learningMode === 'lens' ? <NetworkLens stateRef={stateRef} lang={lang}/> :
+          <Sidebar stateRef={stateRef} onShowGoal={() => { trackEvent('open_goal_modal', { operation: op }); setModalOpen(true); }} expanded={sbExpanded} onToggle={() => { trackEvent('toggle_sidebar', { action: sbExpanded ? 'hide' : 'show' }); setSbExpanded(!sbExpanded); }} />}
       </div>
       <div className="m-playbar">
         <button className="b bp" onClick={handlePlay} disabled={phase === 'running' || phase === 'stepping' || phase === 'done'}>&#9654;</button>

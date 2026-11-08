@@ -175,7 +175,7 @@ export default function Controls({
           <option value="physical">AI DCN (Physical)</option>
         </select>
       </div>
-      {view==='physical'&&<div className="num-group dcn-select">
+      {<div className="num-group dcn-select">
         <label>{lang==='ko'?'배치':'Placement'}</label>
         <select value={placement} onChange={e=>onPlacementChange(e.target.value)}>
           <option value="intra">Intra-server</option><option value="inter">Inter-server</option>

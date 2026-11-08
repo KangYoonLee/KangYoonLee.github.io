@@ -1,24 +1,36 @@
-# CollectiveScope — AI DCN extension of Hyojun's GPU Comm Visualizer
+# CollectiveScope — GPU Collectives, AI DCN, Network Lens
 
-**Built directly from Hyojun Jeon's MIT-licensed [gpu-comm-visualizer](https://github.com/devinjeon/gpu-comm-visualizer).** The original numerical communication model, canvas animation, operation schedule, bilingual interface, and step controls are retained.
+An educational AI datacenter collective communication visualizer with two modes:
+- **Learn** — simultaneous numbered GPU chunk animation, Ring / Tree / Direct algorithms, 4+ GPUs and step playback.
+- **Network Lens** — deterministic logical-traffic accounting for an illustrative intra-server or two-server deployment, per-rank TX/RX, network payload, GPU-to-GPU traffic matrix, per-server NIC TX/RX, model-only NIC serialization floor, and downloadable transfer CSV.
 
-## Extension
+## Attribution and licensing
 
-- View **Logical (Original)** shows the upstream interface and simultaneous moving values.
-- View **AI DCN (Physical)** retains the same collective steps and GPU values, routing illustrative message dots through hardware icons.
-- Placement **Intra-server** uses one server and an abstract NVSwitch.
-- Placement **Inter-server** groups GPUs into two servers and shows NVSwitch, NIC, ToR, and Spine hops.
-- Use GPU 4 or 8, eight operations and the same Ring / Tree / Naive algorithms as upstream.
+This version is an **adaptation based on the actual source code** of Hyojun Jeon's [gpu-comm-visualizer](https://github.com/devinjeon/gpu-comm-visualizer), copyright (c) 2026 Hyojun Jeon, MIT-licensed. The original numeric data model, collective schedule generator, and much of the animation code remain in this adaptation. **Keep the included MIT LICENSE and copyright notice** if distributing this project. This is neither a separate clean-room implementation nor an official upstream release.
 
-**Important:** Physical paths are teaching schematics, *not measured network traffic or exact NCCL routing*. Actual NCCL placement, algorithms, channel scheduling and fabric paths vary by platform. Intra-rack traffic may not traverse a Spine.
+## What is modeled
 
-## License and credits
+- Logical collective schedules are educational examples, not promises of NCCL's selected algorithms or actual channel patterns.
+- `Logical` keeps the original animation. `AI DCN (Physical)` overlays an illustrative GPU / NVSwitch / NIC / ToR / Spine topology.
+- Intra-server: one server, conceptual GPU fabric. Inter-server: two GPU servers; illustrative cross-rack path through a Spine.
+- All transfers of a logical round use the same **assumed payload per chunk** in Network Lens.
+- **Model-based byte counts** = generated logical transfers multiplied by assumed chunk payload, with full-buffer sends counted as C chunks.
+- **Idealized serialization floor** = peak directional server NIC payload per round / selected line rate, added over sequential rounds. It omits actual NCCL channels, pipeline, concurrency limits, transport overhead, queuing, and contention. It is not an observed performance metric.
+- A different link topology or same-rack deployment may bypass a spine; this MVP is deliberately limited to an illustrative two-rack schematic.
 
-Original: Copyright (c) 2026 Hyojun Jeon, MIT License. The original LICENSE is retained verbatim. This is an adaptation and is not represented as an official upstream release.
+## Run and test locally
 
-## Build locally
 ```sh
 npm ci
+node --test test/insights.test.mjs
 npm run dev
 ```
-The enclosing Pages deployment builds the webpack project into `dist/public/collectives/`.
+
+## GitHub Pages
+
+Source: `client/ai-dcn-collectives-src/` in `KangYoonLee/KangYoonLee.github.io`. The Pages workflow builds webpack output into `dist/public/ai-dcn-collectives/`. URL: `https://kangyoonlee.github.io/ai-dcn-collectives/`.
+
+## Next directions
+- Allow arbitrary rank-to-server and GPU-to-NIC mapping, multiple NICs, same-rack vs cross-rack ECMP.
+- MoE AllToAllV skew and traffic matrices with uneven payloads, plus hotspot/capacity exercises.
+- Parse actual NCCL Inspector JSON and time-aligned NIC counters, distinguishing observed measurements from deterministic example traffic.
