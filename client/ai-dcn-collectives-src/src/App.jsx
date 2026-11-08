@@ -26,7 +26,7 @@ function readURL() {
   if (p.has('chunk')) { const c = parseInt(p.get('chunk')); if (c >= 2) chunk = c; }
   if (p.has('speed')) { const pct = parseInt(p.get('speed')); if (pct > 0 && pct <= 2000) speed = pctToPos(pct); }
   if (cfg.cLock(alg)) chunk = gpu;
-  return { op, alg, gpu, chunk, speed, view: p.get('view')==='physical'?'physical':'logical', placement:p.get('placement')==='intra'?'intra':'inter' };
+  return { op, alg, gpu, chunk, speed, view: p.get('view')==='logical'?'logical':'physical', placement:p.get('placement')==='intra'?'intra':'inter' };
 }
 
 function syncURL(op, alg, G, C, speedPos, lang) {
@@ -34,7 +34,7 @@ function syncURL(op, alg, G, C, speedPos, lang) {
   params.set('op', op); params.set('alg', alg); params.set('gpu', G); params.set('chunk', C); params.set('speed', spdPct(speedPos));
   if (lang) params.set('lang', lang);
   const old = new URLSearchParams(window.location.search);
-  params.set('view', old.get('view') || 'logical');
+  params.set('view', old.get('view') || 'physical');
   params.set('placement', old.get('placement') || 'inter');
   window.history.replaceState(null, '', window.location.pathname + '?' + params.toString());
 }
