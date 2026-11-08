@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {summarize,summarizeProgress,nicSerializationFloorMs,makeTransferCSV} from '../engine/insights.mjs';
+import {summarize,summarizeProgress,resolveLensDisplay,nicSerializationFloorMs,makeTransferCSV} from '../engine/insights.mjs';
 
 const T={
  en:{title:'Network Lens',subtitle:'Model-derived — not measured',scope:'Traffic interval',step:'Current round',whole:'Full collective',payload:'Payload per chunk',bandwidth:'NIC line rate',logical:'Logical payload',inter:'Inter-server payload',intra:'Intra-server payload',messages:'Transfers',ranks:'Per-GPU traffic',matrix:'GPU-to-GPU traffic matrix',links:'Modeled NIC demand',floor:'Idealized serialization floor',no:'No inter-server NIC traffic in this scenario.',export:'Export transfer schedule (CSV)',note:'Teaching assumptions: equal payload per chunk, concurrent sends within each logical round. Excludes packet headers, transport overhead, retransmissions, real NCCL channel/protocol selection, and queue contention.',floorNote:'Lower bound = busiest modeled NIC-direction bytes divided by selected line rate; for a full collective, round bounds are summed. Not a prediction of NCCL duration.',tx:'TX',rx:'RX',server:'Server',route:'Same-server transfers use GPU fabric; cross-server transfers use a NIC. Actual hardware routing varies.',preview:'First round preview',eyebrow:'AI DCN / MODEL INSPECTOR'},
@@ -12,6 +12,8 @@ function Stat({label,value}){return <div className="cs-stat"><span>{label}</span
 export default function NetworkLens({stateRef,lang}){
  const s=stateRef.current;
  const [payload,setPayload]=useState(1),[rate,setRate]=useState(100),[scope,setScope]=useState('step');
+ const [reviewStep,setReviewStep]=useState(null);
+ useEffect(()=>setReviewStep(null),[s.steps]);
  const [,setFrame]=useState(0);
  useEffect(()=>{
    const onFrame=()=>setFrame(n=>n+1);
@@ -20,9 +22,15 @@ export default function NetworkLens({stateRef,lang}){
  },[stateRef]);
  const t=T[lang]||T.en;
  const data=useMemo(()=>summarize(s.steps,s.G,s.C,s.placement,payload),[s.steps,s.G,s.C,s.placement,payload]);
- const index=Math.max(0,Math.min(s.curStep<0?0:s.curStep,data.rounds.length-1));
+ const completedSteps=s.stepLog.map(entry=>entry.si);
+ const display=resolveLensDisplay(s.steps.length,s.curStep,s.phase,s.anim,completedSteps,reviewStep);
+ const index=display.index;
  const current=scope==='whole'?data.whole:(data.rounds[index]||data.whole);
- const live=summarizeProgress(s.steps,s.G,s.C,s.placement,payload,s.curStep,s.anim,s.phase,s.view,scope);
+ // A finished step is a saved, complete snapshot until the next step starts.
+ // Whole-collective mode instead continues accumulating all completed work.
+ const live=scope==='step'&&display.isCompleted
+   ? current
+   : summarizeProgress(s.steps,s.G,s.C,s.placement,payload,s.curStep,s.anim,s.phase,s.view,scope);
  const percent=current.allMiB>0?Math.max(0,Math.min(100,live.allMiB/current.allMiB*100)):(s.phase==='done'?100:0);
  const floor=nicSerializationFloorMs(scope==='whole'?data.rounds:[current],rate);
  const matrixMax=Math.max(1,...current.matrix.flat());
@@ -55,12 +63,23 @@ export default function NetworkLens({stateRef,lang}){
      </select>
     </label>
    </div>
-   <p className="cs-step-meta">{scope==='whole'?data.rounds.length+' rounds':(s.curStep<0?t.preview:t.step)+' '+(index+1)+' / '+data.rounds.length} · {current.label}</p>
+   <p className="cs-step-meta">{scope==='whole'?data.rounds.length+' rounds':(s.curStep<0?t.preview:t.step)+' '+(index+1)+' / '+data.rounds.length} · {current.label}{scope==='step'&&display.isCompleted?' · '+(lang==='ko'?'완료된 Step 통계':'Completed step snapshot'):''}</p>
    <div className="cs-live-panel" aria-live="off">
       <div className="cs-live-heading"><strong>{lang==='ko'?'애니메이션 진행률':'Animation progress'}</strong><b>{percent.toFixed(0)}%</b></div>
       <div className="cs-progress-track"><div className="cs-progress-fill" style={{width:percent+'%'}}/></div>
-      <p>{lang==='ko'?'진행된 모델 전송량 / 예정된 전송량':'Modeled progress / scheduled payload'} · {s.phase==='paused'?(lang==='ko'?'일시정지':'Paused'):s.phase==='running'?(lang==='ko'?'재생 중':'Playing'):s.phase==='done'?(lang==='ko'?'완료':'Complete'):(lang==='ko'?'재생 대기':'Ready')}</p>
+      <p>{lang==='ko'?'진행된 모델 전송량 / 예정된 전송량':'Modeled progress / scheduled payload'} · {scope==='step'&&display.isCompleted?(lang==='ko'?'Step 완료 · 결과 유지':'Step completed · result saved'):s.phase==='paused'?(lang==='ko'?'일시정지':'Paused'):s.phase==='running'||s.phase==='stepping'?(lang==='ko'?'재생 중':'Playing'):s.phase==='done'?(lang==='ko'?'완료':'Complete'):(lang==='ko'?'재생 대기':'Ready')}</p>
    </div>
+   {scope==='step'&&completedSteps.length>0&&<div className="cs-history">
+     <div className="cs-history-title"><strong>{lang==='ko'?'완료한 Step 기록':'Completed step history'}</strong><span>{completedSteps.length} / {s.steps.length}</span></div>
+     <div className="cs-history-steps" role="group" aria-label={lang==='ko'?'완료한 Step 통계':'Saved step statistics'}>
+       <button type="button" className={reviewStep===null?'cs-history-active':''} aria-pressed={reviewStep===null} onClick={()=>setReviewStep(null)}>{lang==='ko'?'자동 · 최신':'Auto · latest'}</button>
+       {completedSteps.map(si=><button key={si} type="button" aria-pressed={index===si&&display.isCompleted}
+         className={index===si&&display.isCompleted?'cs-history-active':''} onClick={()=>setReviewStep(si)}>
+         ✓ Step {si+1}
+       </button>)}
+     </div>
+     <p>{lang==='ko'?'완료된 Step의 TX/RX, 행렬, NIC 통계를 다시 선택해 확인할 수 있습니다.':'Select a completed step to review its TX/RX, matrix and NIC totals.'}</p>
+   </div>}
    <div className="cs-statgrid">
     <Stat label={t.logical} value={volume(live.allMiB)+' / '+volume(current.allMiB)}/>
     <Stat label={t.inter} value={volume(live.interMiB)+' / '+volume(current.interMiB)}/>

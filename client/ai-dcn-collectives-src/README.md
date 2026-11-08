@@ -37,3 +37,7 @@ Source: `client/ai-dcn-collectives-src/` in `KangYoonLee/KangYoonLee.github.io`.
 
 ## Live Network Lens (2026-11-08)
 The Network Lens now subscribes to engine animation ticks. It shows a moving **animated progress / scheduled payload** ratio, with in-progress per-GPU TX/RX, traffic matrix and modeled NIC TX/RX. Its progress is interpolated from marker positions, **not measured traffic counters or packet-level bytes**. The scheduled serialization floor remains a fixed theoretical model bound. In AllToAll's one large logical round, progress now visibly changes during playback.
+
+## Step completion / saved round snapshots
+
+While the animation is moving, Network Lens follows the in-progress round. At a Step boundary the upstream engine increments `curStep` to the next round, but Network Lens **retains the just-completed round at 100%**, including rank TX/RX, GPU-to-GPU matrix and server NIC usage. Completed rounds appear under **Completed step history**; clicking a Step reviews its complete model totals, while **Auto · latest** resumes following live playback. Whole-collective mode continues to show cumulative progress. The history is session-local and clears when the collective is reset or reconfigured; values are deterministic model outputs rather than recorded packet traces.

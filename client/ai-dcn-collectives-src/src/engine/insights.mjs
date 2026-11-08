@@ -87,3 +87,21 @@ export function summarizeProgress(steps,G,C,placement,chunkMiB,curStep,anim,phas
   };
   return summarize(steps,G,C,placement,chunkMiB,weights).whole;
 }
+
+/*
+ * The animation engine advances curStep to the NEXT round at a step boundary.
+ * A paused, zero-animation boundary must instead show the last completed round,
+ * and completed rounds can always be reviewed from their saved stepLog indices.
+ */
+export function resolveLensDisplay(stepCount,curStep,phase,anim,completedSteps=[],manualStep=null){
+  const clamp=n=>Math.max(0,Math.min(Math.max(0,stepCount-1),n));
+  const completed=completedSteps.filter(n=>Number.isInteger(n)&&n>=0&&n<stepCount);
+  const recent=completed.length?completed[completed.length-1]:null;
+  const review=manualStep!==null&&completed.includes(manualStep);
+  if(review)return {index:manualStep,isCompleted:true,isManual:true};
+  if(phase==='done'&&recent!==null)return {index:recent,isCompleted:true,isManual:false};
+  if(phase==='paused'&&Number(anim)===0&&recent!==null&&curStep===recent+1){
+    return {index:recent,isCompleted:true,isManual:false};
+  }
+  return {index:clamp(curStep<0?0:curStep),isCompleted:false,isManual:false};
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {summarize,summarizeProgress,chunkCount,nicSerializationFloorMs,makeTransferCSV,serverOf} from '../src/engine/insights.mjs';
+import {summarize,summarizeProgress,resolveLensDisplay,chunkCount,nicSerializationFloorMs,makeTransferCSV,serverOf} from '../src/engine/insights.mjs';
 test('4-GPU AllToAll has 12 directed transfers with 8 cross-server',()=>{
  const t=[];for(let src=0;src<4;src++)for(let dst=0;dst<4;dst++)if(src!==dst)t.push({src,dst,ci_src:dst,ci_dst:src});
  const s=summarize([{ph:'AllToAll',t}],4,4,'inter',1);
@@ -54,4 +54,39 @@ test('current-round progress resets when next round begins; whole accumulates',(
  assert.equal(current.allMiB,0);
  assert.equal(whole.allMiB,1);
  assert.equal(whole.messages,1);
+});
+
+test('Step button keeps the JUST COMPLETED round visible at 100 percent',()=>{
+  // Engine finishes Step 1 by increasing curStep from 0 to 1 and resetting anim=0.
+  const view=resolveLensDisplay(3,1,'paused',0,[0],null);
+  assert.deepEqual(view,{index:0,isCompleted:true,isManual:false});
+  const scheduled=summarize([{t:[{src:0,dst:2,ci:0}]},{t:[{src:1,dst:3,ci:1}]},{t:[{src:3,dst:0,ci:2}]}],4,4,'inter',1);
+  const selected=scheduled.rounds[view.index];
+  assert.equal(selected.allMiB,1);
+  assert.equal(selected.interMiB,1);
+  assert.equal(selected.matrix[0][2],1);
+  assert.equal(selected.ranks[0].tx,1);
+  assert.equal(selected.servers[0].networkTx,1);
+});
+test('Next Step shows live progress, then latest completed snapshot',()=>{
+  const running=resolveLensDisplay(3,1,'stepping',.35,[0],null);
+  assert.deepEqual(running,{index:1,isCompleted:false,isManual:false});
+  const done=resolveLensDisplay(3,2,'paused',0,[0,1],null);
+  assert.deepEqual(done,{index:1,isCompleted:true,isManual:false});
+  const ending=resolveLensDisplay(3,3,'done',0,[0,1,2],null);
+  assert.deepEqual(ending,{index:2,isCompleted:true,isManual:false});
+});
+test('User can review older saved steps, then restore auto mode',()=>{
+  const manual=resolveLensDisplay(4,3,'paused',0,[0,1,2],0);
+  assert.deepEqual(manual,{index:0,isCompleted:true,isManual:true});
+  const auto=resolveLensDisplay(4,3,'paused',0,[0,1,2],null);
+  assert.equal(auto.index,2);
+  const pausedMidStep=resolveLensDisplay(4,2,'paused',.5,[0,1],null);
+  assert.deepEqual(pausedMidStep,{index:2,isCompleted:false,isManual:false});
+});
+test('Back and reset do not show phantom completed statistics',()=>{
+  const back=resolveLensDisplay(3,0,'paused',0,[],0);
+  assert.deepEqual(back,{index:0,isCompleted:false,isManual:false});
+  const reset=resolveLensDisplay(3,-1,'idle',0,[],null);
+  assert.deepEqual(reset,{index:0,isCompleted:false,isManual:false});
 });
