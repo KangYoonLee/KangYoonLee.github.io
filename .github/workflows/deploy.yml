@@ -49,6 +49,24 @@ jobs:
           cp -R client/collective-dcn-src/dist/. dist/public/collectives/
           cp client/collective-dcn-src/LICENSE dist/public/collectives/LICENSE
 
+      - name: Install AI DCN CollectiveScope dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: client/ai-dcn-collectives-src
+
+      - name: Test AI DCN Network Lens accounting
+        run: node --test test/insights.test.mjs
+        working-directory: client/ai-dcn-collectives-src
+
+      - name: Build AI DCN CollectiveScope
+        run: npm run build
+        working-directory: client/ai-dcn-collectives-src
+
+      - name: Publish AI DCN CollectiveScope alongside legacy page
+        run: |
+          mkdir -p dist/public/ai-dcn-collectives
+          cp -R client/ai-dcn-collectives-src/dist/. dist/public/ai-dcn-collectives/
+          cp client/ai-dcn-collectives-src/LICENSE dist/public/ai-dcn-collectives/LICENSE
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
