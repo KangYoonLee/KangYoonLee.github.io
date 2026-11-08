@@ -17,7 +17,7 @@ import { initGA, trackEvent } from './analytics';
 
 function readURL() {
   const p = new URLSearchParams(window.location.search);
-  let op = 'alltoall', alg = 'naive', gpu = 4, chunk = 4, speed = SPD_DEFAULT;
+  let op = 'allreduce', alg = 'ring', gpu = 4, chunk = 4, speed = SPD_DEFAULT;
   if (p.has('op') && OP_CFG[p.get('op')]) op = p.get('op');
   const cfg = OP_CFG[op];
   if (p.has('alg') && cfg.algs.includes(p.get('alg'))) alg = p.get('alg');
