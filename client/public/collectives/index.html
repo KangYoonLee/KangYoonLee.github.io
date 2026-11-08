@@ -2,53 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#f8fafc" />
-  <meta name="description" content="CollectiveScope: an interactive, bilingual GPU collective communication and AI datacenter network topology explorer." />
-  <title>CollectiveScope — GPU Collectives, Explained</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="CollectiveScope — watch GPU collective messages travel across a datacenter topology and logical algorithms." />
+  <title>CollectiveScope · GPU collective visualizer</title>
   <link rel="stylesheet" href="./styles.css" />
   <script defer src="./core.js"></script>
   <script defer src="./app.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="./" aria-label="CollectiveScope home"><span class="brandmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Collective<span class="brandaccent">Scope</span><small>INTERACTIVE LEARNING TOOL</small></span></a>
-    <nav class="navlinks"><a href="#explorer" data-i="navExplorer">Explorer</a><a href="#guide" data-i="navGuide">Field guide</a><a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html" target="_blank" rel="noopener noreferrer">NCCL Docs ↗</a></nav>
-    <div class="header-actions"><span class="status-dot"></span><span class="status-text" data-i="educational">Educational model</span><button type="button" id="langBtn" class="pill-button" aria-label="Switch language">한국어</button></div>
-  </header>
-  <main>
-    <section class="hero wrap">
-      <div class="hero-content"><div class="eyebrow"><span class="eyebrow-line"></span><span>AI DATACENTER NETWORKING / VISUAL LAB</span></div><h1 data-i="heroTitle">See the collective.<br><em>Trace the fabric.</em></h1><p data-i="heroCopy">Go beyond GPU-to-GPU arrows. Explore how collective algorithms schedule messages—and how those messages traverse a physical datacenter network.</p><a class="hero-cta" href="#explorer"><span data-i="openExplorer">Open interactive explorer</span><span aria-hidden="true">↘</span></a></div>
-      <div class="hero-motif" aria-hidden="true"><div class="motif-label">LOGICAL → PHYSICAL</div><svg viewBox="0 0 440 250" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="motifline" x1="0" x2="1"><stop stop-color="#4c8bfc"/><stop offset="1" stop-color="#55f0c4"/></linearGradient></defs><g fill="none" stroke="#243953" stroke-width="1.8"><path d="M78 68H208V164H346"/><path d="M78 164H208V68H346"/><path d="M78 116H346"/></g><g fill="none" stroke="url(#motifline)" stroke-width="2.4"><path d="M78 68H208V164H346" stroke-dasharray="8 9"/><path d="M78 164H208V68H346" stroke-dasharray="8 9"/></g><g fill="#101c30" stroke="#4d89e6" stroke-width="2"><rect x="48" y="48" rx="12" width="60" height="40"/><rect x="48" y="144" rx="12" width="60" height="40"/><rect x="316" y="48" rx="12" width="60" height="40"/><rect x="316" y="144" rx="12" width="60" height="40"/></g><g fill="#102b38" stroke="#55f0c4" stroke-width="2"><rect x="181" y="41" rx="8" width="54" height="54"/><rect x="181" y="137" rx="8" width="54" height="54"/></g><g fill="#c9e1f5" font-family="monospace" font-size="11" text-anchor="middle"><text x="78" y="73">GPU 0</text><text x="78" y="169">GPU 1</text><text x="346" y="73">GPU 2</text><text x="346" y="169">GPU 3</text><text x="208" y="72">SW 0</text><text x="208" y="168">SW 1</text></g><g fill="#55f0c4"><circle r="5"><animateMotion dur="3s" repeatCount="indefinite" path="M78 68H208V164H346"/></circle><circle r="5"><animateMotion dur="3s" begin="1s" repeatCount="indefinite" path="M78 164H208V68H346"/></circle></g></svg><div class="motif-foot"><span>4 RANKS</span><span>2 SWITCHES</span><span>LIVE FLOW PATHS</span></div></div>
-    </section>
-    <section id="explorer" class="workbench wrap" aria-label="Interactive collective visualizer">
-      <div class="section-heading"><div><span class="section-kicker">01 / EXPLORE</span><h2 data-i="explorerTitle">Collective explorer</h2><p data-i="explorerSub">One communication schedule. Two synchronized perspectives.</p></div><button id="shareBtn" type="button" class="outline-btn"><span aria-hidden="true">↗</span> <span data-i="share">Share setup</span></button></div>
-      <div class="workspace">
-        <aside class="controls">
-          <div class="controls-head"><span class="panel-eyebrow">CONFIGURATION</span><span class="live-tag"><i></i><span data-i="interactive">INTERACTIVE</span></span></div>
-          <div class="control-group"><label for="op" data-i="operation">Collective operation</label><select id="op"></select><p class="control-hint" id="opDescription"></p></div>
-          <div class="control-group"><label for="alg" data-i="algorithm">Logical algorithm</label><select id="alg"></select><p class="control-hint" data-i="algHint">Teaching schedules, not an NCCL execution trace.</p></div>
-          <div class="control-grid"><div class="control-group"><label for="n" data-i="ranks">GPU ranks</label><select id="n"><option value="4">4 GPUs</option><option value="8">8 GPUs</option></select></div><div class="control-group" id="rootGroup"><label for="root" data-i="root">Root rank</label><select id="root"></select></div></div>
-          <div class="control-group"><label for="topology" data-i="fabricTopology">Physical topology</label><select id="topology"><option value="single" data-i="single">Single ToR</option><option value="dual" data-i="dual">2 racks · Leaf–Spine</option><option value="quad" data-i="quad">4 racks · Leaf–Spine</option></select></div>
-          <div class="control-group speed-control"><div class="between"><label for="speed" data-i="speed">Playback speed</label><span id="speedValue">1×</span></div><input id="speed" type="range" min="0.5" max="3" step="0.5" value="1" /></div>
-          <div class="control-note"><span class="note-ico">i</span><span data-i="modelNotice">Illustrative routing (fixed source/destination path) and message-equivalent link loads. Not a performance simulator.</span></div>
-        </aside>
-        <div class="explorer-main">
-          <div class="stage-header"><div><div class="stage-breadcrumb">SIMULATION / <strong id="stageBreadcrumb">ALLREDUCE · RING</strong></div><h3 id="stageTitle">Reduce-scatter</h3><p id="stageSummary">Ring reduction · round 1/3</p></div><div class="stage-counter"><span data-i="stepLabel">STEP</span><div><strong id="stepIndex">01</strong><span id="stepTotal"> / 06</span></div></div></div>
-          <div class="visual-grid">
-            <section class="viz-card fabric-card"><div class="viz-heading"><div><span class="viz-dot cyan"></span><span data-i="physical">PHYSICAL NETWORK VIEW</span></div><span class="viz-meta" id="topologyTag">LEAF / SPINE</span></div><div class="viz-body"><svg id="fabricSvg" role="img" aria-label="Physical network visualization" viewBox="0 0 780 392"></svg></div><div class="viz-legend"><span><i class="legend-line active"></i><span data-i="activePath">Active link</span></span><span><i class="legend-line normal"></i><span data-i="idlePath">Idle link</span></span><span class="legend-note" data-i="illustrative">Illustrative, not packet capture</span></div></section>
-            <section class="viz-card logical-card"><div class="viz-heading"><div><span class="viz-dot blue"></span><span data-i="logical">LOGICAL ALGORITHM VIEW</span></div><span class="viz-meta" id="algorithmTag">RING</span></div><div class="viz-body"><svg id="logicalSvg" role="img" aria-label="Logical collective algorithm visualization" viewBox="0 0 390 392"></svg></div><div class="viz-legend"><span><i class="legend-line active"></i><span data-i="currentTransfers">Current transfers</span></span></div></section>
-          </div>
-          <div class="playbar"><button id="resetBtn" class="icon-btn" type="button" aria-label="Reset" title="Reset">↺</button><button id="prevBtn" class="icon-btn" type="button" aria-label="Previous step" title="Previous step">←</button><button id="playBtn" class="play-btn" type="button"><span id="playIcon">▶</span><span id="playText">Play</span></button><button id="nextBtn" class="icon-btn" type="button" aria-label="Next step" title="Next step">→</button><input id="scrub" type="range" min="0" max="1" value="0" step="1" aria-label="Step timeline" /><span class="step-fraction" id="fraction">1 / 6</span></div>
-          <div class="insights"><section class="insight-card explanation"><div class="insight-label"><span class="tiny-square"></span><span data-i="underHood">WHAT IS HAPPENING</span></div><h4 id="explainTitle">Reduce-scatter</h4><p id="explainText"></p><div class="transfer-list" id="transferList"></div></section><section class="insight-card load-card"><div class="between"><div class="insight-label"><span class="tiny-square mint"></span><span data-i="linkPressure">LINK PRESSURE</span></div><span class="tiny-badge" data-i="normalized">NORMALIZED</span></div><div id="linkLoad" class="link-load"></div><p class="load-footnote" data-i="loadHint">Units represent chunk-sized payloads traversing each link in this conceptual step. They are not bytes, throughput, or measured congestion.</p></section></div>
-        </div>
+    <div class="top-inner">
+      <div class="identity"><div class="logo" aria-hidden="true"><span></span><span></span><span></span></div><div><strong>CollectiveScope</strong><small data-t="brandTag">GPU collective visualizer</small></div></div>
+      <div class="top-actions">
+        <span class="model-tag" data-t="conceptual">Conceptual simulator</span>
+        <button type="button" id="langBtn" class="light-button" aria-label="Switch language">한국어</button>
+        <a class="github-link" href="https://github.com/KangYoonLee/KangYoonLee.github.io/tree/main/client/public/collectives" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
       </div>
-      <div class="footstats"><div><span data-i="statOps">PRIMITIVES</span><strong>08</strong></div><div><span data-i="statSteps">SCHEDULE STEPS</span><strong id="metricSteps">06</strong></div><div><span data-i="statMessages">LOGICAL MESSAGES</span><strong id="metricMessages">24</strong></div><div><span data-i="statUnits">PAYLOAD UNITS</span><strong id="metricUnits">24</strong></div><p data-i="statsHint">The number of logical messages and payload units is computed from the illustrated teaching schedule—not actual NCCL counters.</p></div>
+    </div>
+  </header>
+  <main class="main">
+    <div class="intro"><div><h1 data-t="title">Watch data move, step by step.</h1><p data-t="subtitle">Choose a collective, press Play, and follow a message from GPU to GPU.</p></div><button type="button" id="shareBtn" class="light-button share-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m0 0L7.5 7.5M12 3l4.5 4.5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></svg><span data-t="share">Share setup</span></button></div>
+    <section class="config" aria-label="Simulation configuration">
+      <div class="select-field wide"><label for="op" data-t="collective">Collective</label><select id="op"></select></div>
+      <div class="select-field"><label for="alg" data-t="algorithm">Algorithm</label><select id="alg"></select></div>
+      <div class="select-field tiny"><label for="n" data-t="gpuCount">GPUs</label><select id="n"><option value="4">4</option><option value="8">8</option></select></div>
+      <div class="select-field"><label for="topology" data-t="topology">Topology</label><select id="topology"><option value="single">Single ToR</option><option value="dual">2 racks · Leaf–Spine</option><option value="quad">4 racks · Leaf–Spine</option></select></div>
+      <div class="select-field tiny" id="rootField"><label for="root" data-t="root">Root</label><select id="root"></select></div>
     </section>
-    <section class="guide wrap" id="guide"><div class="section-heading"><div><span class="section-kicker">02 / LEARN</span><h2 data-i="guideTitle">A field guide to collectives</h2><p data-i="guideSub">Start with the operation semantics, then follow its algorithm and network path.</p></div></div><div class="guide-grid" id="guideGrid"></div></section>
-    <section class="model-section wrap"><div class="model-icon">≠</div><div><h3 data-i="accuracyTitle">What this model does—and doesn't do</h3><p data-i="accuracyCopy">This tool illustrates abstract, deterministic communication schedules and physical routing. It does not execute NCCL, infer NCCL channels/protocols, model PCIe/NVLink, simulate NIC queuing or PFC, or predict real-time congestion. For research, compare with instrumented NCCL traces and switch/NIC counters.</p></div><a target="_blank" rel="noopener noreferrer" href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html" data-i="readDocs">Algorithm reference ↗</a></section>
+    <section class="simulator" aria-label="Collective message animation">
+      <div class="sim-top">
+        <div class="step-heading"><div class="eyebrow"><span class="dot"></span><span data-t="round">CURRENT ROUND</span><span class="step-num" id="stepCount">1 / 3</span></div><h2 id="stepTitle">Pairwise exchange</h2><p id="stepSub">Destination offset +1 · round 1/3</p></div>
+        <div class="view-tabs" role="group" aria-label="View selection"><button type="button" class="active" data-view="physical" data-t="physical">Physical network</button><button type="button" data-view="logical" data-t="logical">Algorithm</button><button type="button" data-view="both" data-t="both">Both</button></div>
+      </div>
+      <div class="canvas-grid physical-only" id="canvasGrid">
+        <div class="canvas-panel"><div class="canvas-topline"><span><span class="canvas-symbol">◇</span><span data-t="networkCanvas">Network topology</span></span><span class="hint" id="networkTag">2 RACKS · 2 SPINES</span></div><div class="svg-wrap"><svg id="fabricSvg" role="img" aria-label="Animated physical datacenter network topology" viewBox="0 0 920 480" preserveAspectRatio="xMidYMid meet"></svg></div><div class="canvas-caption"><span><i class="legend-packet"></i><span data-t="focusMsg">Selected message</span></span><span><i class="legend-line"></i><span data-t="pathKey">Selected route</span></span><span class="caption-right" data-t="notNCCL">Illustrative paths · Not an NCCL trace</span></div></div>
+        <div class="canvas-panel logical-panel"><div class="canvas-topline"><span><span class="canvas-symbol">↗</span><span data-t="logicalCanvas">Logical communication</span></span><span class="hint" id="logicalTag">PAIRWISE</span></div><div class="svg-wrap"><svg id="logicalSvg" role="img" aria-label="Animated collective logical communication" viewBox="0 0 530 480" preserveAspectRatio="xMidYMid meet"></svg></div><div class="canvas-caption"><span><i class="legend-packet"></i><span data-t="logicalKey">Moving message</span></span></div></div>
+      </div>
+      <div class="playback"><div class="transport"><button type="button" id="resetBtn" class="transport-icon" title="Restart" aria-label="Restart"><svg viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2 6M4 4v7h7"/></svg></button><button type="button" id="prevBtn" class="transport-icon" title="Previous round" aria-label="Previous round"><svg viewBox="0 0 24 24"><path d="M13 5l-7 7 7 7M7 12h12"/></svg></button><button type="button" id="playBtn" class="play-primary"><span id="playGlyph">▶</span><span id="playText">Play</span></button><button type="button" id="nextBtn" class="transport-icon" title="Next round" aria-label="Next round"><svg viewBox="0 0 24 24"><path d="M11 5l7 7-7 7M17 12H5"/></svg></button></div><div class="timeline-area"><input type="range" id="scrub" aria-label="Simulation round" min="0" max="2" step="1" value="0"/><span id="timelineText">1 / 3</span></div><div class="speed-field"><label for="speed" data-t="speed">Speed</label><select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option></select></div></div>
+      <div class="round-progress"><div id="roundProgress"></div></div>
+      <div class="status-bar"><span class="status-idle" id="playStatus">Ready — press Play</span><span id="messageCount">4 messages in this round</span></div>
+    </section>
+    <section class="details">
+      <div class="detail-card route-detail"><div class="detail-title"><h3 data-t="follow">Follow a message</h3><span class="small-badge" id="eventCount">1 of 4</span></div><label for="eventSelect" class="small-label" data-t="message">Message</label><select id="eventSelect"></select><div class="route-text" id="routeText" aria-live="polite">GPU 0 → ToR 0 → ToR 1 → GPU 1</div><div class="hop-status"><span data-t="currentHop">Current hop</span><strong id="hopText">GPU 0 → ToR 0</strong></div><p class="detail-foot" data-t="focusHint">One highlighted message is shown in blue. Other transfers in this round appear as smaller dots.</p></div>
+      <div class="detail-card"><div class="detail-title"><h3 data-t="whatsHappening">What happens this round?</h3><span class="small-badge" id="stepBadge">Round 1</span></div><p class="explain" id="stepExplain"></p><div class="list-heading"><span data-t="transfers">Transfers</span><span id="transferCount">4 total</span></div><div class="transfer-grid" id="transferList"></div></div>
+    </section>
+    <details class="learn"><summary data-t="learnTitle">What is this collective doing?</summary><p id="opExplain"></p><p data-t="modelWarning">These are simplified teaching schedules and illustrative routes. This is not OMNeT++, an NCCL trace, or a packet-level/performance simulation. Link scheduling, NVLink/PCIe, queues and congestion are not modeled.</p><a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html" target="_blank" rel="noopener noreferrer" data-t="nvidiaDocs">Read NVIDIA collective documentation ↗</a></details>
+    <footer><span>CollectiveScope</span><span data-t="footerNote">Made for understanding AI datacenter communication.</span></footer>
   </main>
-  <footer class="footer wrap"><div><strong>Collective<span class="brandaccent">Scope</span></strong><p data-i="footerCopy">A visual learning tool for distributed AI systems and datacenter networking.</p></div><div class="footer-right"><span>EN / 한국어</span><a href="https://github.com/KangYoonLee/KangYoonLee.github.io" target="_blank" rel="noopener noreferrer">GitHub ↗</a><span>© 2026 CollectiveScope</span></div></footer>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
