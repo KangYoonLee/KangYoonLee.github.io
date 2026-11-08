@@ -1,106 +1,147 @@
-/* CollectiveScope v3: all rank states and all simultaneous transfers. */
-(()=>{'use strict';
-const engine=window.CollectiveSim;
-if(!engine){document.body.insertAdjacentHTML('afterbegin','<p>Simulation model failed to load.</p>');return;}
+/* CollectiveScope v4: one canvas, simultaneous numbered data transfers.
+ * Teaching illustration; not a packet trace or NCCL runtime reimplementation. */
+(() => {
+'use strict';
+const S=window.CollectiveSim;
+if(!S)throw new Error('CollectiveSim must load before app.js');
+const ns='http://www.w3.org/2000/svg';
 const $=id=>document.getElementById(id);
-const PARAMS=new URLSearchParams(location.search);
-const app={op:engine.OPS[PARAMS.get('op')]?PARAMS.get('op'):'alltoall',alg:PARAMS.get('alg')||'pairwise',n:PARAMS.get('gpu')==='8'?8:4,placement:PARAMS.get('placement')==='intra'?'intra':'inter',lang:PARAMS.get('lang')==='ko'?'ko':'en',speed:1,step:0,p:0,playing:false,hold:0,prevTime:0,sim:null,transfers:[],logicalMarkers:[],physicalMarkers:[],lastReveal:false};
-const palette=[['#dae8ff','#9dbdf8','#205db2','#3b73d8'],['#dff9ee','#a9e5ca','#207752','#39a17c'],['#fff0dd','#f1cca3','#9f5b12','#dc9638'],['#f3e7ff','#d5b9f9','#7240a3','#a374cf'],['#fce4e8','#f5b3bd','#a4455b','#dd7188'],['#e3f5f9','#a8dce8','#206f87','#45a5bd'],['#f8efdf','#e8d3aa','#906820','#c6a04e'],['#e9ebfd','#b4bef6','#3b51a3','#7586d7']];
-const M={
- en:{pageTitle:'See what every GPU sends and receives.',pageSubtitle:'Numbered blocks move together. Compare GPU communication inside one server versus across AI datacenter servers.',eyebrow:'LEARN BY WATCHING',docsText:'NCCL reference',operation:'Collective',algorithm:'Algorithm',gpuCount:'GPUs',placement:'Placement',speed:'Speed',memoryEyebrow:'01 / GPU MEMORY',memoryTitle:'What each GPU holds',owned:'data blocks',updated:'newly received',empty:'not yet received',transferEyebrow:'02 / SIMULTANEOUS TRANSFERS',transferTitle:'All GPUs communicate together',logicalEyebrow:'03 / LOGICAL ALGORITHM',logicalTitle:'Who talks to whom?',physicalEyebrow:'04 / AI DATACENTER VIEW',physicalTitle:'Where does that traffic travel?',thisRound:'This round',logicalLink:'Logical connection',activeTraffic:'Active path',inactiveLink:'Inactive link',modelTitle:'Model scope',modelBadge:'Educational model · not NCCL trace',play:'Play all',pause:'Pause',replay:'Replay',round:'Round',of:'of',complete:'Complete ✓',start:'Start',seeResult:'See final result →',finalResult:'Final result',send:'SEND · TO GPU',received:'RECEIVED · FROM GPU',buffer:'DATA / CHUNKS',rank:'GPU',server:'Server',local:'local',cross:'network',messages:'messages',message:'message',localCount:'local',crossCount:'cross-server',ready:'Press Play to watch all messages move simultaneously.',end:'Every GPU now holds its final output.',detail:'The numbers on every GPU update together at the end of each round.',diagram:'Arrows show each sending and receiving GPU in this step.',localInfo:'GPU traffic remains within the same server, using its local GPU fabric.',interInfo:'Cross-server transfers traverse the network. Same-server transfers remain local.',networkNote:'Simplified path: local GPU fabric → NIC → ToR → Spine → ToR → NIC → GPU fabric.',networkNoteLocal:'Local GPU fabric (illustrative NVLink / NVSwitch path); no ToR or Spine traffic.',modelFootnote:'Discrete rounds and sample values illustrate collective semantics. Real NCCL selects channels, algorithms and routes dynamically; link congestion, time and packets are not simulated.',footTransfer:'Numbers represent logical data chunks, not Ethernet packets.',completeTransfer:'All rounds complete. Choose Replay to watch again.',speedUnits:'×',logicalNetwork:'Pairwise is a schedule, not a physical ring.',logicalRing:'Ring order: every GPU sends to its next neighbor.',logicalTree:'Binomial communication tree rooted at GPU 0.',logicalDirect:'Direct (conceptual) transfers; not a fixed NCCL topology.',toolIntra:'1 server · local GPU fabric',toolInter:'2 racks · GPU fabric + NIC + ToR + Spine',sending:'Sends this round',receiving:'Receives this round',copy:'Copy link ↗',copied:'Link copied ✓'},
- ko:{pageTitle:'모든 GPU의 데이터가 어떻게 이동하는지 한눈에.',pageSubtitle:'숫자 데이터가 모든 GPU에서 동시에 움직입니다. 서버 내부와 AI 데이터센터의 서버 간 통신을 비교해 보세요.',eyebrow:'직접 보면서 배우기',docsText:'NCCL 공식 문서',operation:'Collective',algorithm:'Algorithm',gpuCount:'GPU 개수',placement:'GPU 배치',speed:'재생 속도',memoryEyebrow:'01 / GPU 메모리',memoryTitle:'각 GPU가 보유한 데이터',owned:'데이터 블록',updated:'새로 받은 값',empty:'아직 못 받은 값',transferEyebrow:'02 / 동시 데이터 전송',transferTitle:'모든 GPU가 동시에 통신',logicalEyebrow:'03 / 논리적 알고리즘',logicalTitle:'누가 누구에게 보내는가?',physicalEyebrow:'04 / AI 데이터센터',physicalTitle:'데이터는 실제 어디로 지나갈까?',thisRound:'현재 라운드',logicalLink:'논리적 연결',activeTraffic:'활성 경로',inactiveLink:'비활성 링크',modelTitle:'모델 범위',modelBadge:'학습용 모델 · NCCL Trace 아님',play:'전체 재생',pause:'일시정지',replay:'처음부터 재생',round:'라운드',of:'/',complete:'완료 ✓',start:'시작',seeResult:'최종 결과 보기 →',finalResult:'최종 결과',send:'전송할 데이터 · GPU',received:'수신 데이터 · GPU',buffer:'데이터 / 청크',rank:'GPU',server:'서버',local:'서버 내부',cross:'서버 간',messages:'전송',message:'전송',localCount:'로컬',crossCount:'서버 간',ready:'재생을 누르면 모든 GPU의 데이터가 동시에 이동합니다.',end:'모든 GPU가 최종 결과를 보유했습니다.',detail:'매 라운드가 끝날 때 모든 GPU의 숫자가 동시에 갱신됩니다.',diagram:'현재 라운드에 통신하는 GPU 쌍을 화살표로 보여줍니다.',localInfo:'같은 서버 안에서는 GPU 로컬 패브릭으로 통신합니다.',interInfo:'서버 간 전송은 NIC와 스위치를 지나고, 같은 서버 내 전송은 로컬 패브릭에 머뭅니다.',networkNote:'단순화된 경로: GPU 패브릭 → NIC → ToR → Spine → ToR → NIC → GPU 패브릭',networkNoteLocal:'서버 내부 GPU 패브릭 (NVLink/NVSwitch 개념도). ToR/Spine 통신 없음.',modelFootnote:'이 사이트는 숫자와 이산 라운드로 Collective의 원리를 설명하는 모델입니다. 실제 NCCL의 채널·알고리즘·경로 선택, 링크 혼잡 및 패킷 단위 통신은 재현하지 않습니다.',footTransfer:'움직이는 숫자는 논리적 데이터 청크이며 Ethernet 패킷이 아닙니다.',completeTransfer:'모든 라운드가 끝났습니다. 처음부터 다시 재생할 수 있어요.',speedUnits:'배',logicalNetwork:'Pairwise는 통신 순서이지 물리적 Ring이 아닙니다.',logicalRing:'Ring 순서: 각 GPU가 다음 GPU에게 보냅니다.',logicalTree:'GPU 0을 Root로 하는 Binomial 통신 Tree.',logicalDirect:'Direct 개념도 (NCCL 고정 토폴로지가 아님).',toolIntra:'서버 1대 · GPU 로컬 패브릭',toolInter:'서로 다른 랙의 서버 2대 · NIC + ToR + Spine',sending:'현재 송신',receiving:'현재 수신',copy:'링크 복사 ↗',copied:'복사 완료 ✓'}
+const COLORS=['#6ba6ff','#ff9b65','#be8cf5','#58cba7','#ff7596','#ffc86f','#77d9ea','#a3be61'];
+const I={
+ en:{operation:'Collective',algorithm:'Algorithm',gpus:'GPUs',placement:'Placement',path:'View',speed:'Speed',model:'Interactive collective communication visualizer',hint:'Press Play to watch every GPU send simultaneously.',ready:'Ready',sending:'transfers moving',finished:'Complete',step:'STEP',play:'Play',pause:'Pause',result:'Show result →',complete:'Finished — all communication steps complete.',begin:'Start · all GPUs own their original numbered data.',input:'SEND',output:'RECEIVED',data:'DATA',own:'Initial / owned data',updated:'Received / updated',read:'How to read this',scope:'Each box is a GPU; each numbered cell is a logical data chunk. Colored tokens move together during a step. This is an explanatory animation—not an NCCL trace, measured latency, or Ethernet packets.',share:'Copy configuration link ↗',copied:'Link copied',server:'GPU SERVER',rack:'RACK',logical:'LOGICAL RANK CONNECTIONS',physical:'PHYSICAL ROUTE · ILLUSTRATIVE',server1:'1 server',server2:'2 servers',links:'transfers this step',noMessages:'No messages in this step',network:'Between servers: NIC → ToR → Spine → ToR → NIC',local:'Within one server: local GPU fabric',desc:{alltoall:'Each GPU sends a different numbered chunk to every other GPU.',allreduce:'Every GPU receives the sum of all contributions.',allgather:'Every GPU collects the unique chunk from every other GPU.',reducescatter:'Matching chunks are summed, then distributed to different GPUs.',broadcast:'GPU 0 copies its data to every other GPU.',reduce:'All GPUs add their data at GPU 0.',gather:'GPU 0 collects the individual chunks from all GPUs.',scatter:'GPU 0 distributes one distinct chunk to every GPU.'}},
+ ko:{operation:'Collective',algorithm:'알고리즘',gpus:'GPU 개수',placement:'GPU 배치',path:'경로 보기',speed:'재생 속도',model:'GPU Collective Communication 시각화',hint:'Play를 누르면 모든 GPU의 데이터가 동시에 이동해요.',ready:'준비',sending:'개 전송 중',finished:'완료',step:'단계',play:'재생',pause:'일시정지',result:'최종 결과 보기 →',complete:'완료 — 모든 통신 단계가 끝났습니다.',begin:'시작 · 각 GPU는 고유한 숫자 데이터를 가지고 있습니다.',input:'송신 데이터',output:'수신 데이터',data:'보유 데이터',own:'초기 / 보유 데이터',updated:'새로 수신한 데이터',read:'그림 읽는 법',scope:'큰 박스는 GPU, 작은 숫자 칸은 논리적 데이터 청크입니다. 한 단계에서 색깔 숫자들이 동시에 이동합니다. NCCL 실행 추적, 실제 지연시간 또는 이더넷 패킷을 나타내는 그림은 아닙니다.',share:'설정 URL 복사 ↗',copied:'링크 복사 완료',server:'GPU 서버',rack:'랙',logical:'논리적 GPU 통신 관계',physical:'물리적 통신 경로 · 개념도',server1:'서버 1대',server2:'서버 2대',links:'개 전송 예정',noMessages:'이번 단계에는 전송이 없습니다',network:'서버 간: NIC → ToR → Spine → ToR → NIC',local:'서버 내부: GPU 연결망',desc:{alltoall:'모든 GPU가 목적지마다 다른 숫자 청크를 동시에 전송합니다.',allreduce:'모든 GPU의 값을 더한 결과를 각 GPU가 받습니다.',allgather:'모든 GPU가 다른 GPU의 고유 청크를 모읍니다.',reducescatter:'같은 위치의 청크를 합산한 후 GPU마다 다른 청크를 분배합니다.',broadcast:'GPU 0의 데이터를 모든 GPU에 복사합니다.',reduce:'모든 GPU의 값을 GPU 0에서 합산합니다.',gather:'GPU 0이 각 GPU의 청크를 모읍니다.',scatter:'GPU 0이 서로 다른 청크를 각 GPU에 분배합니다.'}}
 };
-const algorithms={ring:'Ring',tree:'Tree',pairwise:'Pairwise',direct:'Direct (Naive)'};
-const visibleName=(op)=>engine.OPS[op].name;
-const t=key=>M[app.lang][key]||key;
-const escaped=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-function getServer(rank){return app.placement==='intra'?0:Math.floor(rank/(app.n/2));}
-function syncURL(){const u=new URL(location.href);u.searchParams.set('op',app.op);u.searchParams.set('alg',app.alg);u.searchParams.set('gpu',String(app.n));u.searchParams.set('placement',app.placement);u.searchParams.set('lang',app.lang);history.replaceState(null,'',u);}
-function updateLanguage(){document.documentElement.lang=app.lang;document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));for(const id of ['pageTitle','pageSubtitle','eyebrow','docsText','modelBadge','modelFootnote','stepStart'])$(id).textContent=t(id==='stepStart'?'start':id);$('langToggle').textContent=app.lang==='en'?'한국어':'English';$('copyBtn').textContent=t('copy');$('finishBtn').textContent=t('seeResult');document.querySelectorAll('[data-placement]').forEach(b=>b.textContent=b.dataset.placement==='intra'?'Intra-server':'Inter-server');}
-function refreshAlgOptions(){const opts=engine.OPS[app.op].algs;if(!opts.includes(app.alg))app.alg=opts[0];$('algSelect').innerHTML=opts.map(a=>`<option value="${a}">${algorithms[a]}</option>`).join('');$('algSelect').value=app.alg;}
-function reset(){app.playing=false;app.step=0;app.p=0;app.hold=0;app.lastReveal=false;app.sim=engine.build({op:app.op,alg:app.alg,n:app.n});refreshAlgOptions();app.alg=app.sim.alg;app.sim=engine.build({op:app.op,alg:app.alg,n:app.n});$('opSelect').value=app.op;$('algSelect').value=app.alg;$('stepRange').max=String(app.sim.frames.length);$('stepRange').value='0';document.querySelectorAll('[data-gpu]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.gpu)===app.n));document.querySelectorAll('[data-placement]').forEach(b=>b.classList.toggle('selected',b.dataset.placement===app.placement));$('speedSelect').value=String(app.speed);$('opTitle').textContent=`${visibleName(app.op)} · ${algorithms[app.alg]}`;$('opDesc').textContent=app.lang==='en'?app.sim.options.desc:app.sim.options.ko;$('networkMode').textContent=t(app.placement==='intra'?'toolIntra':'toolInter');updateLanguage();syncURL();renderAll();}
-function currentFrame(){return app.sim.frames[app.step]||null;}
-function afterReveal(){return app.step>=app.sim.frames.length||app.p>=.95;}
-function valuesAt(){if(app.step>=app.sim.frames.length)return app.sim.final;const frame=currentFrame();return afterReveal()?frame.after:frame.before;}
-function updatedIndices(rank){const f=currentFrame();if(!f||!afterReveal())return[];const prev=f.before[rank].values,now=f.after[rank].values;return now.map((v,i)=>v!==prev[i]?i:-1).filter(x=>x>=0);}
-function chipHtml(value,index,which,rank,active,changed){const empty=value===null||value===undefined;const cls=['value-chip',empty?'empty':'',changed?'received':'',active?'highlight':''].filter(Boolean).join(' ');return `<div class="${cls}" data-index="${index}"><small>${which==='send'?`→${index}`:which==='inbox'?`←${index}`:`C${index}`}</small><strong>${empty?'·':escaped(value)}</strong></div>`;}
-function renderGPUs(){const {n,op}=app.sim,values=valuesAt(),f=currentFrame();const activeFrom=new Set(f?.packets.map(p=>p.from)||[]),activeTo=new Set(f?.packets.map(p=>p.to)||[]);const count=app.placement==='intra'?1:2;const groupSize=n/count;let html='';for(let server=0;server<count;server++){
-  const gpus=Array.from({length:groupSize},(_,i)=>server*groupSize+i);html+=`<div class="server-group ${count===1?'full':''}"><div class="server-header"><span>${t('server')} ${String.fromCharCode(65+server)}</span><span class="server-tag">${app.placement==='intra'?'GPU fabric':`GPU fabric + NIC`}</span></div><div class="server-gpus" style="--gpu-columns:${Math.min(4,groupSize)}">`;
-  for(const r of gpus){const p=palette[r];const card=values[r];const className=activeFrom.has(r)?'active-send':activeTo.has(r)?'active-recv':'';const updated=updatedIndices(r);const sendIdx=new Set((f?.packets||[]).filter(e=>e.from===r).flatMap(e=>e.indices));
-   html+=`<article class="gpu-card ${className}" style="--rank-color:${p[3]}"><div class="gpu-card-top"><span class="gpu-title"><i class="gpu-dot"></i> GPU ${r}</span><span class="gpu-small">Rank ${r}</span></div>`;
-   if(op==='alltoall'){html+=`<div class="buffer-label">${t('send')}</div><div class="values-grid" style="--tiles:${n<=4?4:4}">${card.send.map((v,i)=>chipHtml(v,i,'send',r,sendIdx.has(i),false)).join('')}</div>`;html+=`<div class="buffer-label">${t('received')}</div><div class="values-grid" style="--tiles:${n<=4?4:4}">${card.values.map((v,i)=>chipHtml(v,i,'inbox',r,false,updated.includes(i))).join('')}</div>`;
-   }else{html+=`<div class="buffer-label">${t('buffer')}</div><div class="values-grid" style="--tiles:${Math.min(4,card.values.length)}">${card.values.map((v,i)=>chipHtml(v,i,'recv',r,sendIdx.has(i),updated.includes(i))).join('')}</div>`;}
-   html+='</article>';
-  }html+='</div></div>';
- }$('gpuBoard').innerHTML=html;
-}
-function transferGroupMarkup(packets){const isMany=packets.length>app.n*2;let html='';if(isMany){const grouped=Array.from({length:app.n},(_,r)=>packets.filter(p=>p.from===r));for(let r=0;r<grouped.length;r++){const group=grouped[r];html+=`<div class="flow-row multi" style="--rank-color:${palette[r][3]}"><span class="flow-from"><i></i>GPU ${r}</span><div class="flow-track multi-track" style="height:60px">${group.map((p,k)=>{const col=k%4,row=Math.floor(k/4);return `<span class="flow-token grouped" data-token="${packets.indexOf(p)}" style="--rank-bg:${palette[r][0]};--rank-border:${palette[r][1]};--rank-ink:${palette[r][2]};top:${row*27}px;left:${col*52}px;font-size:10px">${escaped(p.valueLabel)}<small>→${p.to}</small></span>`;}).join('')}</div><span class="flow-end">${group.length} ${t('messages')}</span></div>`;}
-}else{
- for(let i=0;i<packets.length;i++){const p=packets[i];const isLocal=getServer(p.from)===getServer(p.to),col=palette[p.from];html+=`<div class="flow-row ${isLocal?'local':'cross'}" style="--rank-color:${col[3]}"><span class="flow-from"><i></i>GPU ${p.from}</span><div class="flow-track"><span class="flow-token" data-token="${i}" style="--rank-bg:${col[0]};--rank-border:${col[1]};--rank-ink:${col[2]}">${escaped(p.valueLabel)}</span></div><span class="flow-end">GPU ${p.to}</span><span class="flow-kind ${isLocal?'local':''}">${t(isLocal?'local':'cross')}</span></div>`;}
-}return html;}
-function renderTransfers(){const f=currentFrame();app.transfers=[];if(!f){$('transferGrid').innerHTML=`<div class="completed-state">✓ ${t('completeTransfer')}</div>`;$('transferCount').textContent='0';$('transferNote').textContent=t('end');return;}
- const {packets}=f;$('transferCount').textContent=`${packets.length} ${t('messages')}`;$('transferGrid').innerHTML=transferGroupMarkup(packets);$('transferNote').textContent=app.lang==='ko'?f.ko:f.label;$('transferFooter').textContent=t('footTransfer');app.transfers=[...$('transferGrid').querySelectorAll('[data-token]')].map(el=>({el,index:Number(el.dataset.token)}));}
-function point(r){if(app.alg==='tree'&&['allreduce','reduce','broadcast','gather','scatter'].includes(app.op)){
- const preset={0:[206,35],1:[66,151],2:[150,91],3:[148,180],4:[311,91],5:[370,172],6:[284,164],7:[284,221]};return preset[r];}
- const a=-Math.PI/2+2*Math.PI*r/app.n;return [210+108*Math.cos(a),128+92*Math.sin(a)];}
-function svgLine(a,b,cls='',more=''){return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" ${more} class="${cls}"/>`;}
-const logicalBase=()=>{
- if(app.alg==='ring')return Array.from({length:app.n},(_,r)=>[r,(r+1)%app.n]);
- if(app.alg==='tree')return engine.stages(app.n).flatMap(s=>s.map(e=>[e.from,e.to]));return [];
-};
-function renderLogical(){const svg=$('logicalSvg'),f=currentFrame(),base=logicalBase();let html=`<defs><marker id="arrowGrey" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#cad6e6" stroke-width="1.2"/></marker><marker id="arrowBlue" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#3575d5" stroke-width="1.3"/></marker></defs>`;
- for(const [a,b] of base)html+=svgLine(point(a),point(b),'',`stroke="#e1e8f2" stroke-width="2" marker-end="url(#arrowGrey)"`);
- app.logicalMarkers=[];
- if(f){for(const [i,p] of f.packets.entries()){
-  const a=point(p.from),b=point(p.to);const opacity=f.packets.length>20?'.15':'.7';html+=svgLine(a,b,'',`stroke="#3777da" stroke-width="${f.packets.length>20?'1':'2.5'}" opacity="${opacity}" marker-end="url(#arrowBlue)"`);
-  html+=`<circle id="log-m-${i}" cx="${a[0]}" cy="${a[1]}" r="${f.packets.length>20?3:5}" fill="${palette[p.from][3]}" stroke="white" stroke-width="1.5"/>`;app.logicalMarkers.push({id:`log-m-${i}`,pts:[a,b]});
- }}
- for(let r=0;r<app.n;r++){const pos=point(r);html+=`<circle cx="${pos[0]}" cy="${pos[1]}" r="${app.n===8?16:19}" fill="white" stroke="#b7c8df" stroke-width="1.7"/><circle cx="${pos[0]-10}" cy="${pos[1]-10}" r="3.6" fill="${palette[r][3]}"/><text x="${pos[0]}" y="${pos[1]+4}" font-size="${app.n===8?11:12}" font-weight="750" text-anchor="middle" fill="#30445e">${r}</text>`;}
- svg.innerHTML=html;$('logicalName').textContent=algorithms[app.alg];$('logicalNote').textContent=t(app.alg==='ring'?'logicalRing':app.alg==='tree'?'logicalTree':app.alg==='pairwise'?'logicalNetwork':'logicalDirect');app.logicalMarkers.forEach(m=>m.el=$(m.id));
-}
-const physicalNodes=()=>{const gpu=[];if(app.placement==='intra'){for(let r=0;r<app.n;r++)gpu.push([80+r*800/(app.n-1),52]);return {gpu,sw:[[480,155]],nic:[],tor:[],spine:null};}
- const half=app.n/2;for(let r=0;r<app.n;r++){const group=r<half?0:1,idx=r%half;gpu.push([(group===0?66:560)+idx*(group===0?290:290)/(half-1),44]);}
- return {gpu,sw:[[245,128],[715,128]],nic:[[245,176],[715,176]],tor:[[367,223],[593,223]],spine:[480,223]};};
-function physicalRoute(p,nodes){const sa=getServer(p.from),sb=getServer(p.to);if(sa===sb)return[nodes.gpu[p.from],nodes.sw[sa],nodes.gpu[p.to]];
- return[nodes.gpu[p.from],nodes.sw[sa],nodes.nic[sa],nodes.tor[sa],nodes.spine,nodes.tor[sb],nodes.nic[sb],nodes.sw[sb],nodes.gpu[p.to]];}
-function activeLinks(points){return points.slice(1).map((v,i)=>[points[i],v]);}
-function networkShapes(nodes){let html='';const drawGPU=(p,r)=>`<rect x="${p[0]-28}" y="${p[1]-15}" width="56" height="30" rx="7" fill="#fff" stroke="#bdcce0" stroke-width="1.5"/><circle cx="${p[0]-17}" cy="${p[1]-6}" r="3.5" fill="${palette[r][3]}"/><text x="${p[0]}" y="${p[1]+4}" text-anchor="middle" fill="#40516b" font-size="11" font-weight="730">GPU ${r}</text>`;
- const label=(p,title,w=124)=>`<rect x="${p[0]-w/2}" y="${p[1]-15}" width="${w}" height="30" rx="7" fill="#edf4ff" stroke="#8eb7f5" stroke-width="1.2"/><text x="${p[0]}" y="${p[1]+4}" text-anchor="middle" font-size="12" font-weight="700" fill="#3769b2">${title}</text>`;
- const ln=(a,b)=>svgLine(a,b,'',`stroke="#d5e0ed" stroke-width="2.2"`);
- if(app.placement==='intra'){
- html+=`<rect x="21" y="16" width="918" height="222" rx="14" fill="#f5f9ff" stroke="#dae5f3"/><text x="42" y="221" fill="#8da0b5" font-size="12" font-weight="650">SERVER A · LOCAL GPU FABRIC</text>`;
- for(const gpu of nodes.gpu)html+=ln(gpu,nodes.sw[0]);html+=label(nodes.sw[0],'NVLink / NVSwitch',148);nodes.gpu.forEach((p,r)=>html+=drawGPU(p,r));
- }else{
-  html+=`<rect x="25" y="12" width="385" height="178" rx="12" fill="#f6f9fd" stroke="#dce5f0"/><rect x="550" y="12" width="385" height="178" rx="12" fill="#f6f9fd" stroke="#dce5f0"/><text x="48" y="28" fill="#8194ab" font-size="11" font-weight="750">SERVER A</text><text x="573" y="28" fill="#8194ab" font-size="11" font-weight="750">SERVER B</text>`;
-  for(let r=0;r<app.n;r++)html+=ln(nodes.gpu[r],nodes.sw[getServer(r)]);
-  for(let i=0;i<2;i++){html+=ln(nodes.sw[i],nodes.nic[i]);html+=ln(nodes.nic[i],nodes.tor[i]);html+=ln(nodes.tor[i],nodes.spine);}
-  html+=label(nodes.sw[0],'GPU fabric',112)+label(nodes.sw[1],'GPU fabric',112)+label(nodes.nic[0],'NIC',67)+label(nodes.nic[1],'NIC',67)+label(nodes.tor[0],'ToR A',80)+label(nodes.tor[1],'ToR B',80)+label(nodes.spine,'Spine',80);
-  nodes.gpu.forEach((p,r)=>html+=drawGPU(p,r));
+const Q=new URLSearchParams(location.search);
+const params={op:Q.get('op')||'alltoall',alg:Q.get('alg')||'pairwise',n:Number(Q.get('gpu'))===8?8:4,placement:Q.get('placement')==='inter'?'inter':'intra',view:Q.get('view')==='dcn'?'dcn':'logical',speed:[.5,1,2,4].includes(Number(Q.get('speed')))?Number(Q.get('speed')):1,lang:Q.get('lang')==='ko'?'ko':'en'};
+if(!S.OPS[params.op])params.op='alltoall';
+if(!S.OPS[params.op].algs.includes(params.alg))params.alg=S.OPS[params.op].algs[0];
+let sim,step=0,playing=false,autoplay=false,progress=0,started=0,lastTs=0,frameId=0,pending=0,packetSprites=[];
+const canvas=$('stage'), background=$('stage-backdrop'),links=$('stage-links'),nodes=$('stage-nodes'),packetLayer=$('stage-packets');
+const xlink=(tag,attrs,parent)=>{const el=document.createElementNS(ns,tag);for(const [key,value]of Object.entries(attrs||{}))el.setAttribute(key,String(value));if(parent)parent.appendChild(el);return el};
+const txt=(parent,x,y,value,cls,extra={})=>{const el=xlink('text',{x,y,class:cls,...extra},parent);el.textContent=String(value);return el};
+const path=(parent,d,attrs={})=>xlink('path',{d,...attrs},parent);
+const rect=(parent,x,y,w,h,attrs={})=>xlink('rect',{x,y,width:w,height:h,rx:attrs.rx??9,...attrs},parent);
+const lines=(x,y,word,parent=background)=>txt(parent,x,y,word,'overlay-label');
+const box={w:198,h:152};
+const serverIndex=r=>params.placement==='intra'?0:(r<params.n/2?0:1);
+function positions(){const p={};if(params.placement==='intra'&&params.alg==='tree'&&params.view==='logical'){
+ const tree=params.n===4?[[600,165],[330,320],[800,320],[800,505]]:[[600,154],[250,292],[515,292],[515,433],[885,292],[775,433],[1045,433],[1045,548]];
+ tree.forEach(([x,y],r)=>p[r]={x,y});return p;
+ }if(params.placement==='intra'){
+ const xx=params.n===4?[390,810]:[152,451,749,1048]; const top=205,bottom=475;
+ for(let r=0;r<params.n;r++){let col=params.n===4?r%2:r%4;let row=params.n===4?Math.floor(r/2):Math.floor(r/4);
+  if(params.alg==='ring'){if(params.n===4){const ordered=[[0,0],[1,0],[1,1],[0,1]];[col,row]=ordered[r];}else{const ordered=[[0,0],[1,0],[2,0],[3,0],[3,1],[2,1],[1,1],[0,1]];[col,row]=ordered[r];}}
+  p[r]={x:xx[col],y:row?bottom:top};}
+}else if(params.n===4){[[250,198],[250,470],[950,198],[950,470]].forEach(([x,y],r)=>p[r]={x,y});}
+else{for(let r=0;r<8;r++){const left=r<4,k=r%4;p[r]={x:left?(k%2?403:175):(k%2?1025:797),y:k<2?205:470};}}
+return p;}
+function translated(){return I[params.lang];}
+function syncURL(){const p=new URLSearchParams({op:params.op,alg:params.alg,gpu:String(params.n),placement:params.placement,view:params.view,speed:String(params.speed),lang:params.lang});try{history.replaceState(null,'',location.pathname+'?'+p.toString());}catch(_e){/* embedded/preview contexts without a navigable origin */}}
+function applyOptions(){const algs=S.OPS[params.op].algs;const select=$('algorithm');select.innerHTML='';for(const alg of algs){const el=document.createElement('option');el.value=alg;el.textContent=alg==='pairwise'?'Pairwise':alg==='direct'?'Direct (Naive)':alg.charAt(0).toUpperCase()+alg.slice(1);select.appendChild(el);}if(!algs.includes(params.alg))params.alg=algs[0];select.value=params.alg;}
+function applyLang(){const t=translated();document.documentElement.lang=params.lang;document.querySelectorAll('[data-t]').forEach(el=>{const k=el.getAttribute('data-t');if(t[k])el.textContent=t[k];});$('language').textContent=params.lang==='en'?'한국어':'English';$('education').textContent=t.model;$('complete').textContent=t.result;$('scope-title').textContent=t.read;$('scope-desc').textContent=t.scope;$('share').textContent=t.share;$('legend').innerHTML=`<span><i class="legend-color owned"></i>${t.own}</span><span><i class="legend-color updated"></i>${t.updated}</span>`;document.querySelector('[data-placement="intra"]').textContent=t.server1;document.querySelector('[data-placement="inter"]').textContent=t.server2;}
+function applyControls(){applyOptions();$('operation').value=params.op;$('speed').value=String(params.speed);document.querySelectorAll('[data-n]').forEach(el=>el.classList.toggle('active',Number(el.dataset.n)===params.n));document.querySelectorAll('[data-placement]').forEach(el=>el.classList.toggle('active',el.dataset.placement===params.placement));document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view===params.view));applyLang();syncURL();}
+function stop(){playing=false;autoplay=false;if(frameId)cancelAnimationFrame(frameId);if(pending)clearTimeout(pending);frameId=0;pending=0;}
+function rebuild(){stop();progress=0;step=0;sim=S.build(params);applyControls();render();}
+function drawBackdrop(pos){background.replaceChildren();const t=translated();
+ // One shared GPU enclosure or two physically distinct server enclosures.
+ if(params.placement==='intra'){rect(background,20,66,1160,params.alg==='tree'&&params.view==='logical'?556:515,{class:'server-frame',rx:17});txt(background,40,93,`${t.server.toUpperCase()} 0  ·  GPU FABRIC`,'server-label');}
+ else{rect(background,26,73,484,505,{class:'server-frame',rx:17});rect(background,690,73,484,505,{class:'server-frame',rx:17});txt(background,46,100,`${t.server.toUpperCase()} 0  ·  NVLINK`,'server-label');txt(background,710,100,`${t.server.toUpperCase()} 1  ·  NVLINK`,'server-label');}
+ if(params.view==='dcn'&&params.placement==='inter'){
+  path(background,'M 515 334 L 685 334',{class:'router-line'});
+  for(const [x,name,sub] of [[539,'ToR 0','Leaf'],[600,'SPINE','Fabric'],[661,'ToR 1','Leaf']]){
+   rect(background,x-28,305,56,58,{class:'router-node',rx:10});txt(background,x,327,name,'router-label');txt(background,x,343,sub,'router-sub');
+  }
  }
- return html;
+ txt(background,600,37,params.view==='dcn'?t.physical:t.logical,'server-label',{'text-anchor':'middle'});
+ if(params.view==='dcn')txt(background,600,625,params.placement==='inter'?t.network:t.local,'legend-slot',{'text-anchor':'middle'});
 }
-function renderPhysical(){const svg=$('physicalSvg'),f=currentFrame(),nodes=physicalNodes();let html=networkShapes(nodes);app.physicalMarkers=[];
- let local=0,cross=0;
- if(f){for(const [i,p] of f.packets.entries()){const src=getServer(p.from),dst=getServer(p.to);if(src===dst)local++;else cross++;const pts=physicalRoute(p,nodes);const path=pts.map((a,j)=>`${j===0?'M':'L'} ${a[0]} ${a[1]}`).join(' ');html+=`<path d="${path}" fill="none" stroke="${src===dst?'#8698af':'#3f7ee9'}" stroke-width="${f.packets.length>20?1.4:3.1}" stroke-linecap="round" stroke-linejoin="round" opacity="${f.packets.length>20?'.13':'.6'}"/>`;html+=`<circle id="phy-m-${i}" r="${f.packets.length>20?3:5.5}" cx="${pts[0][0]}" cy="${pts[0][1]}" fill="${palette[p.from][3]}" stroke="white" stroke-width="1.5"><title>GPU ${p.from} → GPU ${p.to}: ${escaped(p.valueLabel)}</title></circle>`;app.physicalMarkers.push({id:`phy-m-${i}`,pts});}}
- svg.innerHTML=html;app.physicalMarkers.forEach(m=>m.el=$(m.id));$('networkCount').textContent=`${cross} ${t('crossCount')} · ${local} ${t('localCount')}`;$('physicalNote').textContent=t(app.placement==='intra'?'localInfo':'interInfo');$('networkFootnote').textContent=t(app.placement==='intra'?'networkNoteLocal':'networkNote');}
-function renderStatus(){const f=currentFrame(),max=app.sim.frames.length;$('stageTitle').textContent=f?`${t('round')} ${app.step+1} ${t('of')} ${max}`:`${t('complete')}`;$('stageHint').textContent=f?(app.lang==='en'?f.label:f.ko):t('end');$('stepRange').value=String(app.step);$('stepEnd').textContent=t('complete');$('playIcon').textContent=app.playing?'Ⅱ':'▶';$('playText').textContent=app.playing?t('pause'):app.step>=max?t('replay'):t('play');$('prevBtn').disabled=app.step===0&&app.p===0;$('nextBtn').disabled=app.step>=max;$('finishBtn').disabled=app.step>=max;}
-function renderAll(){renderGPUs();renderTransfers();renderLogical();renderPhysical();renderStatus();paintMotion();}
-function interpolate(pts,p){if(pts.length<2)return pts[0]||[0,0];const lengths=[];let total=0;for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]);lengths.push(len);total+=len;}let travel=Math.max(0,Math.min(1,p))*total;for(let i=0;i<lengths.length;i++){if(travel<=lengths[i]||i===lengths.length-1){const a=pts[i],b=pts[i+1],q=lengths[i]?travel/lengths[i]:1;return[a[0]+(b[0]-a[0])*q,a[1]+(b[1]-a[1])*q];}travel-=lengths[i];}return pts.at(-1);}
-function paintMotion(){const p=app.p;for(const item of app.transfers){const el=item.el,track=el.parentElement;if(!track)continue;const width=track.clientWidth,offset=el.classList.contains('grouped')?parseFloat(el.style.left)||0:0;const distance=el.classList.contains('grouped')?Math.max(0,width-el.offsetWidth-4*53):Math.max(0,width-el.offsetWidth-offset-1);el.style.transform=`translateX(${(p*distance).toFixed(2)}px)`;}
- for(const arr of [app.logicalMarkers,app.physicalMarkers])for(const m of arr){if(!m.el)continue;const [x,y]=interpolate(m.pts,p);m.el.setAttribute('cx',x.toFixed(1));m.el.setAttribute('cy',y.toFixed(1));}}
-function pause(){app.playing=false;app.hold=0;renderStatus();}
-function play(){if(app.playing){pause();return;}if(app.step>=app.sim.frames.length){app.step=0;app.p=0;app.hold=0;app.lastReveal=false;renderAll();}app.playing=true;app.prevTime=performance.now();renderStatus();}
-function seek(index){pause();app.step=Math.min(app.sim.frames.length,Math.max(0,index));app.p=0;app.lastReveal=false;renderAll();}
-function frameLoop(now){if(app.playing){const dt=Math.max(0,Math.min(90,now-app.prevTime));app.prevTime=now;const duration=1950/app.speed;if(app.p<1){app.p=Math.min(1,app.p+dt/duration);paintMotion();const reveal=afterReveal();if(reveal!==app.lastReveal){app.lastReveal=reveal;renderGPUs();}if(app.p===1)app.hold=0;}else {app.hold+=dt;if(app.hold>380){app.step++;app.p=0;app.hold=0;app.lastReveal=false;if(app.step>=app.sim.frames.length){pause();renderAll();}else renderAll();}}}requestAnimationFrame(frameLoop);}
-// User input
-$('opSelect').addEventListener('change',e=>{app.op=e.target.value;app.alg=engine.OPS[app.op].algs[0];reset();});
-$('algSelect').addEventListener('change',e=>{app.alg=e.target.value;reset();});
-document.querySelectorAll('[data-gpu]').forEach(b=>b.addEventListener('click',()=>{app.n=Number(b.dataset.gpu);reset();}));
-document.querySelectorAll('[data-placement]').forEach(b=>b.addEventListener('click',()=>{app.placement=b.dataset.placement;reset();}));
-$('speedSelect').addEventListener('change',e=>{app.speed=Number(e.target.value);});
-$('langToggle').addEventListener('click',()=>{app.lang=app.lang==='en'?'ko':'en';reset();});
-$('playBtn').addEventListener('click',play);$('prevBtn').addEventListener('click',()=>seek(app.step-1));$('nextBtn').addEventListener('click',()=>seek(app.step+1));$('restartBtn').addEventListener('click',()=>seek(0));$('finishBtn').addEventListener('click',()=>seek(app.sim.frames.length));$('stepRange').addEventListener('input',e=>seek(Number(e.target.value)));
-$('copyBtn').addEventListener('click',async()=>{syncURL();try{await navigator.clipboard.writeText(location.href);$('copyBtn').textContent=t('copied');setTimeout(()=>$('copyBtn').textContent=t('copy'),1300);}catch(e){$('copyBtn').textContent=location.href;}});
-window.addEventListener('resize',paintMotion);document.addEventListener('keydown',e=>{if(e.target.closest('input,select,button,textarea'))return;if(e.code==='Space'){e.preventDefault();play();}if(e.code==='ArrowRight')seek(app.step+1);if(e.code==='ArrowLeft')seek(app.step-1);});
-if(!engine.OPS[app.op].algs.includes(app.alg))app.alg=engine.OPS[app.op].algs[0];reset();requestAnimationFrame(frameLoop);
+function drawGPU(r,pos,values,old){const {x,y}=pos;const g=xlink('g',{'data-rank':r},nodes);const w=box.w,h=box.h;rect(g,x-w/2,y-h/2,w,h,{class:'node-bg',rx:13});rect(g,x-w/2,y-h/2,w,32,{fill:'#203855',rx:12});rect(g,x-w/2,y-h/2+25,w,9,{fill:'#203855',rx:0});
+ rect(g,x-w/2+11,y-h/2+10,10,10,{fill:COLORS[r],rx:3});txt(g,x-w/2+28,y-h/2+23,`GPU ${r}`,'node-title');txt(g,x+w/2-12,y-h/2+21,`RANK ${r}`,'node-sub',{'text-anchor':'end'});path(g,`M ${x-w/2+10} ${y-h/2+35} H ${x+w/2-10}`,{class:'node-divider'});
+ const t=translated();const before=old&&old[r]?old[r].values:[];
+ function valuesRow(label,arr,y0,comp,highlight){txt(g,x-w/2+12,y0-10,label,'mini-label');const gap=4,len=arr.length,width=Math.min(25,Math.floor((w-23-(len-1)*gap)/len));const total=width*len+gap*(len-1);const start=x-total/2;for(let i=0;i<len;i++){
+  const v=arr[i],isNew=highlight&&v!=null&&v!==before[i];const c=v==null?'cell empty':isNew?'cell new':comp?'cell local':'cell';rect(g,start+i*(width+gap),y0,width,24,{class:c,rx:4});txt(g,start+i*(width+gap)+width/2,y0+12.3,v==null?'·':v,isNew?'cell-value new-text':v==null?'cell-value empty-text':'cell-value');
+ }}
+ if(params.op==='alltoall'){
+  valuesRow(t.input,sim.initial[r].send,y-30,true,false);
+  valuesRow(t.output,values[r].values,y+25,false,true);
+ }else{
+  valuesRow(t.data,values[r].values,y+3,false,true);
+ }
+}
+const roundPaths=[];
+function curve(a,b,from,to){const dx=b.x-a.x,dy=b.y-a.y;const gap=Math.hypot(dx,dy)||1;const start={x:a.x+dx/gap*(box.w/2+3),y:a.y+dy/gap*(box.h/2+2)},end={x:b.x-dx/gap*(box.w/2+3),y:b.y-dy/gap*(box.h/2+2)};
+ const bump=(to-from)%2===0?-23:23;const mx=(start.x+end.x)/2,my=(start.y+end.y)/2;const cx=mx+(-dy/gap)*bump,cy=my+(dx/gap)*bump;
+ return `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
+}
+function networkRoute(a,b,from,to){if(params.placement==='intra'||serverIndex(from)===serverIndex(to))return curve(a,b,from,to);
+ const left=serverIndex(from)===0;
+ const sx=left?a.x+box.w/2+5:a.x-box.w/2-5;
+ const ex=left?b.x-box.w/2-5:b.x+box.w/2+5;
+ const srcRouter=left?539:661,dstRouter=left?661:539;
+ return `M ${sx} ${a.y} L ${srcRouter} 334 L 600 334 L ${dstRouter} 334 L ${ex} ${b.y}`;
+}
+function renderLinks(pos){links.replaceChildren();roundPaths.length=0;if(step>=sim.frames.length)return;
+ const packets=sim.frames[step].packets.filter(p=>p.entries.length);
+ // Skeleton edges communicate ring/tree topology without adding a second plot.
+ if(params.view==='logical' && params.alg==='ring')for(let r=0;r<params.n;r++)path(links,curve(pos[r],pos[(r+1)%params.n],r,(r+1)%params.n),{class:'skeleton'});
+ if(params.view==='logical' && params.alg==='tree'){
+  for(const edgeGroup of S.stages(params.n))for(const {from,to}of edgeGroup)path(links,curve(pos[from],pos[to],from,to),{class:'skeleton'});
+ }
+ for(const [i,p]of packets.entries()){
+  const d=params.view==='dcn'?networkRoute(pos[p.from],pos[p.to],p.from,p.to):curve(pos[p.from],pos[p.to],p.from,p.to);
+  const el=path(links,d,{class:'active-line',stroke:COLORS[p.from],opacity:params.n===8&&packets.length>20?.14:.52,'data-transfer':`${p.from}-${p.to}`});
+  roundPaths.push({p,el,i});
+ }
+}
+function buildPackets(){packetLayer.replaceChildren();packetSprites=[];
+ if(step>=sim.frames.length)return;
+ const count=roundPaths.length;for(const {p,el,i} of roundPaths){
+  const g=xlink('g',{class:'packet-token','data-from':p.from,'data-to':p.to},packetLayer);
+  const color=COLORS[p.from],entries=p.entries;
+  xlink('circle',{cx:0,cy:0,r:count>22?16:20,fill:color,class:'packet-bg'},g);
+  const num=entries.length===1?String(entries[0].value):entries.length===0?'·':entries.length>3?`${entries.length}×`:entries.map(x=>x.value).join(',');
+  txt(g,0,0,num,'packet-num',{'font-size':num.length>3?10:13});
+  g.style.display='none';packetSprites.push({g,path:el,packet:p});
+ }
+}
+function locate(progressValue){for(const item of packetSprites){if(progressValue<=0){item.g.style.display='none';continue;}item.g.style.display='';const length=item.path.getTotalLength();const pos=item.path.getPointAtLength(length*Math.max(0,Math.min(1,progressValue)));item.g.setAttribute('transform',`translate(${pos.x.toFixed(2)} ${pos.y.toFixed(2)})`);}}
+function render(){box.h=params.placement==='intra'&&params.alg==='tree'&&params.view==='logical'?104:152;const t=translated();const pos=positions();const values=sim.snapshots[step];const old=sim.snapshots[Math.max(0,step-1)];drawBackdrop(pos);renderLinks(pos);nodes.replaceChildren();for(let r=0;r<params.n;r++)drawGPU(r,pos[r],values,old);buildPackets();locate(progress);
+ $('opname').innerHTML=`${sim.options.name} <small>· ${params.alg==='direct'?'Direct':params.alg.charAt(0).toUpperCase()+params.alg.slice(1)}</small>`;
+ $('explanation').textContent=t.desc[params.op];$('step-indicator').textContent=`${t.step.toUpperCase()} ${step} / ${sim.frames.length}`;
+ $('time-steps').textContent=`${step} / ${sim.frames.length}`;$('timeline').max=String(sim.frames.length);$('timeline').value=String(step);
+ if(step>=sim.frames.length){$('active-counter').textContent=t.finished;$('round-heading').textContent=t.finished;$('round-explainer').textContent=t.complete;}
+ else{const frame=sim.frames[step];$('active-counter').textContent=`${frame.packets.filter(p=>p.entries.length).length} ${playing?t.sending:t.links}`;
+ $('round-heading').textContent=step===0?t.ready:`${t.step} ${step+1}`;
+ $('round-explainer').textContent=step===0&&!playing?t.begin:(params.lang==='ko'?frame.ko:frame.label);
+ }
+ $('play-icon').textContent=playing?'Ⅱ':'▶';$('play-label').textContent=playing?t.pause:t.play;$('canvas-hint').textContent=step>=sim.frames.length?t.complete:t.hint;
+ $('prev').disabled=step===0&&!progress;$('next').disabled=step>=sim.frames.length;$('complete').disabled=step>=sim.frames.length;
+}
+function updateUIForPlaying(){const t=translated();$('play-icon').textContent=playing?'Ⅱ':'▶';$('play-label').textContent=playing?t.pause:t.play;if(step<sim.frames.length){$('round-heading').textContent=sim.frames[step].phase.toUpperCase();$('round-explainer').textContent=params.lang==='ko'?sim.frames[step].ko:sim.frames[step].label;$('active-counter').textContent=`${packetSprites.length} ${t.sending}`;}}
+function duration(){return 1900/params.speed;}
+function animate(now){if(!playing)return;lastTs=now;progress=Math.max(0,Math.min(1,(now-started)/duration()));locate(progress);
+ if(progress>=1){step+=1;progress=0;if(step>=sim.frames.length){stop();render();return;}render();if(autoplay){pending=setTimeout(()=>{pending=0;if(playing){started=performance.now();frameId=requestAnimationFrame(animate);}},260/params.speed);}else{stop();render();}return;}
+ frameId=requestAnimationFrame(animate);
+}
+function begin(auto){if(playing){stop();render();return;}
+ if(step>=sim.frames.length){step=0;progress=0;}
+ playing=true;autoplay=auto;render();updateUIForPlaying();started=performance.now()-progress*duration();frameId=requestAnimationFrame(animate);
+}
+function move(to){stop();progress=0;step=Math.max(0,Math.min(sim.frames.length,to));render();}
+function toggleLang(){params.lang=params.lang==='en'?'ko':'en';applyControls();render();}
+$('play').addEventListener('click',()=>{if(playing){stop();render();}else begin(true);});
+$('next').addEventListener('click',()=>{if(step<sim.frames.length){stop();begin(false);}});
+$('prev').addEventListener('click',()=>move(step-1));$('reset').addEventListener('click',()=>move(0));$('complete').addEventListener('click',()=>move(sim.frames.length));
+$('timeline').addEventListener('input',e=>move(Number(e.target.value)));
+$('operation').addEventListener('change',e=>{params.op=e.target.value;params.alg=S.OPS[params.op].algs[0];rebuild();});
+$('algorithm').addEventListener('change',e=>{params.alg=e.target.value;rebuild();});$('speed').addEventListener('change',e=>{params.speed=Number(e.target.value);rebuild();});
+document.querySelectorAll('[data-n]').forEach(el=>el.addEventListener('click',()=>{params.n=Number(el.dataset.n);rebuild();}));
+document.querySelectorAll('[data-placement]').forEach(el=>el.addEventListener('click',()=>{params.placement=el.dataset.placement;rebuild();}));
+document.querySelectorAll('[data-view]').forEach(el=>el.addEventListener('click',()=>{params.view=el.dataset.view;rebuild();}));
+$('language').addEventListener('click',toggleLang);
+$('share').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);$('toast').textContent=translated().copied;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),1400);}catch(e){window.prompt('Copy URL',location.href);}});
+window.addEventListener('keydown',e=>{if(['SELECT','INPUT','BUTTON'].includes(document.activeElement?.tagName))return;if(e.code==='Space'){e.preventDefault();$('play').click();}else if(e.code==='ArrowRight')$('next').click();else if(e.code==='ArrowLeft')$('prev').click();});
+rebuild();
+// Only used for browser-level regression checks; no UI dependence.
+window.__collectiveDebug=()=>({step,playing,progress,particles:packetSprites.length,visible:packetSprites.filter(x=>x.g.style.display!=='none').length,final:S.validate(sim),n:params.n,op:params.op});
 })();
