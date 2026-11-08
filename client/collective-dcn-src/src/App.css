@@ -146,3 +146,9 @@ canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: 
   }
   .m-playbar .b { flex: 1; max-width: 80px; padding: 0; font-size: 14px; height: 32px; line-height: 32px; text-align: center; }
 }
+
+/* AI DCN option added without altering upstream visual language. */
+.dcn-select select{border-color:#26517f;}
+.upstream-credit{position:absolute;bottom:11px;right:50px;color:#8698b0;font-size:10px;text-decoration:none;z-index:4;}
+.upstream-credit:hover{color:#ecf3ff;text-decoration:underline;}
+@media(max-width:767px){.upstream-credit{right:8px;bottom:8px;font-size:9px;max-width:60%;text-align:right;}}

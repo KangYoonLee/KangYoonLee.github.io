@@ -35,6 +35,20 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Install CollectiveScope fork dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: client/collective-dcn-src
+
+      - name: Build CollectiveScope fork
+        run: npm run build
+        working-directory: client/collective-dcn-src
+
+      - name: Copy CollectiveScope into Pages output
+        run: |
+          mkdir -p dist/public/collectives
+          cp -R client/collective-dcn-src/dist/. dist/public/collectives/
+          cp client/collective-dcn-src/LICENSE dist/public/collectives/LICENSE
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

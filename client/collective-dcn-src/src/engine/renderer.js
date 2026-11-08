@@ -59,7 +59,7 @@ function drawEdges(ctx, gpus, G, alg, op) {
   ctx.restore();
 }
 
-function drawGPUs(ctx, gpus, G, C, op) {
+export function drawGPUs(ctx, gpus, G, C, op) {
   for (const g of gpus) {
     const geo = cellGeo(gpus, C, g.gi, 0);
     const { cardW, cardH, rx, ry } = geo;

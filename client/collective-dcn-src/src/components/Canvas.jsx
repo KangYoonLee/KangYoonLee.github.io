@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { drawScene } from '../engine/renderer';
+import {drawDcnScene,computeDcnLayout,autoFitDcn} from '../engine/dcn';
 import { cellGeo, computeLayout, autoFit } from '../engine/layout';
 import { trackEvent } from '../analytics';
 
@@ -19,7 +20,7 @@ export default function Canvas({ stateRef, onViewChange }) {
     if (!state || !state.gpus || !state.gpus.length) return;
     state.showMinimap = showMmRef.current;
     const ctx = cv.getContext('2d');
-    drawScene(ctx, state);
+    if(state.view==='physical')drawDcnScene(ctx,state);else drawScene(ctx,state);
   }, [stateRef]);
 
   const resize = useCallback(() => {
@@ -33,10 +34,10 @@ export default function Canvas({ stateRef, onViewChange }) {
     const state = stateRef.current;
     if (state && state.gpus && state.gpus.length) {
       const W = c.clientWidth, H = c.clientHeight;
-      computeLayout(state.gpus, state.G, state.C, state.alg, state.op, W, H);
+      if(state.view==='physical')computeDcnLayout(state,W,H);else computeLayout(state.gpus,state.G,state.C,state.alg,state.op,W,H);
       // Only auto-fit on first layout (idle with no user interaction)
       if (!state._userZoomed) {
-        const fit = autoFit(state.gpus, state.G, state.C, W, H);
+        const fit = state.view==='physical'?autoFitDcn(state,W,H):autoFit(state.gpus,state.G,state.C,W,H);
         state.zoom = fit.zoom;
         state.panX = fit.panX;
         state.panY = fit.panY;
@@ -54,8 +55,8 @@ export default function Canvas({ stateRef, onViewChange }) {
       state._resize = resize;
       const W = cv.parentElement.clientWidth;
       const H = cv.parentElement.clientHeight;
-      computeLayout(state.gpus, state.G, state.C, state.alg, state.op, W, H);
-      const fit = autoFit(state.gpus, state.G, state.C, W, H);
+      if(state.view==='physical')computeDcnLayout(state,W,H);else computeLayout(state.gpus,state.G,state.C,state.alg,state.op,W,H);
+      const fit = state.view==='physical'?autoFitDcn(state,W,H):autoFit(state.gpus,state.G,state.C,W,H);
       state.zoom = fit.zoom;
       state.panX = fit.panX;
       state.panY = fit.panY;
@@ -122,7 +123,7 @@ export default function Canvas({ stateRef, onViewChange }) {
     const rect = canvasRef.current.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     const mm = mmBounds();
-    if (mx >= mm.mmX - 2 && mx <= mm.mmX + mm.mmW + 2 && my >= mm.mmY - 2 && my <= mm.mmY + mm.mmH + 2) {
+    if (stateRef.current.view!=='physical' && showMmRef.current && mx >= mm.mmX - 2 && mx <= mm.mmX + mm.mmW + 2 && my >= mm.mmY - 2 && my <= mm.mmY + mm.mmH + 2) {
       mmDragRef.current = true;
       mmNavTo(mx, my);
       canvasRef.current.style.cursor = 'crosshair';
@@ -165,7 +166,7 @@ export default function Canvas({ stateRef, onViewChange }) {
     const cv = canvasRef.current;
     const W = cv.parentElement.clientWidth;
     const H = cv.parentElement.clientHeight;
-    const fit = autoFit(state.gpus, state.G, state.C, W, H);
+    const fit = state.view==='physical'?autoFitDcn(state,W,H):autoFit(state.gpus,state.G,state.C,W,H);
     state.zoom = fit.zoom;
     state.panX = fit.panX;
     state.panY = fit.panY;
@@ -197,7 +198,7 @@ export default function Canvas({ stateRef, onViewChange }) {
       const mm = mmBounds();
 
       // Minimap drag takes priority over double-tap
-      if (showMmRef.current && mx >= mm.mmX - 2 && mx <= mm.mmX + mm.mmW + 2 && my >= mm.mmY - 2 && my <= mm.mmY + mm.mmH + 2) {
+      if (stateRef.current.view!=='physical' && showMmRef.current && mx >= mm.mmX - 2 && mx <= mm.mmX + mm.mmW + 2 && my >= mm.mmY - 2 && my <= mm.mmY + mm.mmH + 2) {
         lastTapRef.current = 0;
         mmDragRef.current = true;
         mmNavTo(mx, my);
@@ -293,15 +294,17 @@ export default function Canvas({ stateRef, onViewChange }) {
       />
       <div id="hud" />
       <button
+        style={{display:stateRef.current.view==='physical'?'none':undefined}}
         className={`mm-toggle${showMm ? '' : ' mm-closed'}`}
         onClick={toggleMm}
         title={showMm ? 'Hide minimap' : 'Show minimap'}
       >
         {showMm ? '\u2013' : '\u25A1'}
       </button>
-      <a href="https://github.com/devinjeon/gpu-comm-visualizer" target="_blank" rel="noopener noreferrer" className="gh-link" title="GitHub" onClick={() => trackEvent('click_github_link')}>
+      <a href="https://github.com/KangYoonLee/KangYoonLee.github.io/tree/main/client/collective-dcn-src" target="_blank" rel="noopener noreferrer" className="gh-link" title="GitHub" onClick={() => trackEvent('click_github_link')}>
         <svg viewBox="0 0 16 16" width="28" height="28" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       </a>
+      <a className="upstream-credit" href="https://github.com/devinjeon/gpu-comm-visualizer" target="_blank" rel="noopener noreferrer">Adapted from Hyojun Jeon's GPU Comm Visualizer (MIT)</a>
     </div>
   );
 }

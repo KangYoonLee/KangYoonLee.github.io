@@ -101,6 +101,7 @@ export default function Controls({
   onOpChange, onAlgChange, onGChange, onCChange,
   onSpeedChange, onPlay, onPause, onStep, onBack, onReset,
   historyLen, lang, toggleLang,
+  view, placement, onViewChange, onPlacementChange,
 }) {
   const { t } = useLang();
   const cfg = OP_CFG[op];
@@ -167,6 +168,19 @@ export default function Controls({
         <label className={cLocked ? 'dis' : ''}>Chunk:</label>
         <NumInput value={C} min={2} disabled={cLocked} title={t('chunkTitle')} onChange={onCChange} />
       </div>
+      <div className="num-group dcn-select">
+        <label>{lang==='ko'?'화면':'View'}</label>
+        <select value={view} onChange={e=>onViewChange(e.target.value)}>
+          <option value="logical">{lang==='ko'?'원본 방식 (Logical)':'Logical (Original)'}</option>
+          <option value="physical">AI DCN (Physical)</option>
+        </select>
+      </div>
+      {view==='physical'&&<div className="num-group dcn-select">
+        <label>{lang==='ko'?'배치':'Placement'}</label>
+        <select value={placement} onChange={e=>onPlacementChange(e.target.value)}>
+          <option value="intra">Intra-server</option><option value="inter">Inter-server</option>
+        </select>
+      </div>}
       <div className="sp">
         <label>{t('speed')}</label>
         <button className="sb2" ref={spdDnRef}>&minus;</button>

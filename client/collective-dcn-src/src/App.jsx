@@ -7,6 +7,7 @@ import { OP_CFG, spdInc, spdPct, pctToPos, SPD_DEFAULT } from './engine/constant
 import { mkData } from './engine/dataModel';
 import { genSteps } from './engine/stepGenerator';
 import { computeLayout, autoFit } from './engine/layout';
+import { computeDcnLayout, autoFitDcn } from './engine/dcn';
 import { snap, apply, addFlash } from './engine/animation';
 import { opDesc } from './engine/opDesc';
 import { useLang } from './i18n';
@@ -15,7 +16,7 @@ import { initGA, trackEvent } from './analytics';
 
 function readURL() {
   const p = new URLSearchParams(window.location.search);
-  let op = 'allreduce', alg = 'ring', gpu = 5, chunk = 5, speed = SPD_DEFAULT;
+  let op = 'alltoall', alg = 'naive', gpu = 4, chunk = 4, speed = SPD_DEFAULT;
   if (p.has('op') && OP_CFG[p.get('op')]) op = p.get('op');
   const cfg = OP_CFG[op];
   if (p.has('alg') && cfg.algs.includes(p.get('alg'))) alg = p.get('alg');
@@ -24,13 +25,16 @@ function readURL() {
   if (p.has('chunk')) { const c = parseInt(p.get('chunk')); if (c >= 2) chunk = c; }
   if (p.has('speed')) { const pct = parseInt(p.get('speed')); if (pct > 0 && pct <= 2000) speed = pctToPos(pct); }
   if (cfg.cLock(alg)) chunk = gpu;
-  return { op, alg, gpu, chunk, speed };
+  return { op, alg, gpu, chunk, speed, view: p.get('view')==='physical'?'physical':'logical', placement:p.get('placement')==='intra'?'intra':'inter' };
 }
 
 function syncURL(op, alg, G, C, speedPos, lang) {
   const params = new URLSearchParams();
   params.set('op', op); params.set('alg', alg); params.set('gpu', G); params.set('chunk', C); params.set('speed', spdPct(speedPos));
   if (lang) params.set('lang', lang);
+  const old = new URLSearchParams(window.location.search);
+  params.set('view', old.get('view') || 'logical');
+  params.set('placement', old.get('placement') || 'inter');
   window.history.replaceState(null, '', window.location.pathname + '?' + params.toString());
 }
 
@@ -45,7 +49,7 @@ function createInitialState(params) {
     gpus, steps, curStep: -1, phase: 'idle', anim: 0,
     snapInfo: [], flashFx: [], history: [], stepLog: [],
     zoom: 1, panX: 0, panY: 0,
-    speedPos: params.speed,
+    speedPos: params.speed, view:params.view, placement:params.placement,
     _draw: null, _resize: null,
   };
 }
@@ -57,6 +61,8 @@ export default function App() {
   const [G, setG] = useState(init.gpu);
   const [C, setC] = useState(init.chunk);
   const [speedPos, setSpeedPos] = useState(init.speed);
+  const [view, setView] = useState(init.view);
+  const [placement, setPlacement] = useState(init.placement);
   const [phase, setPhase] = useState('idle');
   const [modalOpen, setModalOpen] = useState(false);
   const [sbExpanded, setSbExpanded] = useState(false);
@@ -82,6 +88,8 @@ export default function App() {
 
     // Preserve _draw/_resize from Canvas component
     const prevDraw = stateRef.current ? stateRef.current._draw : null;
+    const prevView = stateRef.current ? stateRef.current.view : 'logical';
+    const prevPlacement = stateRef.current ? stateRef.current.placement : 'inter';
     const prevResize = stateRef.current ? stateRef.current._resize : null;
 
     stateRef.current = {
@@ -89,7 +97,7 @@ export default function App() {
       gpus, steps, curStep: -1, phase: 'idle', anim: 0,
       snapInfo: [], flashFx: [], history: [], stepLog: [],
       zoom: 1, panX: 0, panY: 0,
-      speedPos: newSpeedPos,
+      speedPos: newSpeedPos, view: prevView, placement:prevPlacement,
       _draw: prevDraw, _resize: prevResize,
     };
 
@@ -103,8 +111,9 @@ export default function App() {
       if (cv && stateRef.current) {
         const W = cv.parentElement.clientWidth;
         const H = cv.parentElement.clientHeight;
-        computeLayout(stateRef.current.gpus, newG, finalC, newAlg, newOp, W, H);
-        const fit = autoFit(stateRef.current.gpus, newG, finalC, W, H);
+        if (stateRef.current.view==='physical') computeDcnLayout(stateRef.current,W,H);
+        else computeLayout(stateRef.current.gpus, newG, finalC, newAlg, newOp, W, H);
+        const fit = stateRef.current.view==='physical'? autoFitDcn(stateRef.current,W,H):autoFit(stateRef.current.gpus, newG, finalC, W, H);
         stateRef.current.zoom = fit.zoom;
         stateRef.current.panX = fit.panX;
         stateRef.current.panY = fit.panY;
@@ -281,6 +290,15 @@ export default function App() {
     initEngine(op, alg, G, C, speedPos);
   }, [op, alg, G, C, speedPos, initEngine]);
 
+  const changeDcn = useCallback((field,value) => {
+    const s=stateRef.current;if(!s)return;
+    s[field]=value;s._userZoomed=false;
+    if(field==='view')setView(value);else setPlacement(value);
+    const p=new URLSearchParams(window.location.search);p.set(field,value);
+    window.history.replaceState(null,'',window.location.pathname+'?'+p.toString());
+    requestAnimationFrame(()=>{if(s._resize)s._resize();});
+  },[]);
+
   // Update HUD whenever config or language changes
   useEffect(() => {
     updateHUD();
@@ -306,6 +324,9 @@ export default function App() {
         onPlay={handlePlay} onPause={handlePause} onStep={handleStep}
         onBack={handleBack} onReset={handleReset}
         historyLen={stateRef.current ? stateRef.current.history.length : 0}
+        view={view} placement={placement}
+        onViewChange={(v)=>changeDcn('view',v)}
+        onPlacementChange={(v)=>changeDcn('placement',v)}
         lang={lang} toggleLang={() => { const next = lang === 'ko' ? 'en' : 'ko'; trackEvent('toggle_language', { language: next }); toggleLang(); syncURL(op, alg, G, C, speedPos, next); }}
       />
       <div className="main">
