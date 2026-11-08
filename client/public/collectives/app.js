@@ -1,185 +1,106 @@
-/* CollectiveScope v2 — requestAnimationFrame-driven visual message transport.
-   The model describes pedagogical communication rounds, not NCCL execution timing. */
-(()=>{
-'use strict';
-const core=window.CollectiveCore;
-if(!core) throw Error('CollectiveScope core.js did not load');
-const el=id=>document.getElementById(id);
-const svgNS='http://www.w3.org/2000/svg';
-const labels={
- en:{brandTag:'GPU collective visualizer',conceptual:'Conceptual simulator',title:'Watch data move, step by step.',subtitle:'Choose a collective, press Play, and follow a message from GPU to GPU.',share:'Share setup',collective:'Collective',algorithm:'Algorithm',gpuCount:'GPUs',topology:'Topology',root:'Root',round:'CURRENT ROUND',physical:'Physical network',logical:'Algorithm',both:'Both',networkCanvas:'Network topology',logicalCanvas:'Logical communication',focusMsg:'Selected message',pathKey:'Selected route',notNCCL:'Illustrative paths · Not an NCCL trace',logicalKey:'Moving message',speed:'Speed',follow:'Follow a message',message:'Message',currentHop:'Current hop',focusHint:'Follow the blue marker. Other messages are shown as smaller dots.',whatsHappening:'What happens this round?',transfers:'Transfers',learnTitle:'What is this collective doing?',modelWarning:'Simplified teaching schedules and illustrative network routes. This is not OMNeT++, an NCCL execution trace, or a packet-level/performance simulation. NVLink/PCIe, queues, arbitration and congestion are not modeled.',nvidiaDocs:'Read NVIDIA collective documentation ↗',footerNote:'Made for understanding AI datacenter communication.',play:'Play',pause:'Pause',ready:'Ready — press Play',playing:'Messages moving',paused:'Paused',complete:'All rounds complete',roundLabel:'Round',of:'of',messages:'messages in this round',total:'total',copied:'Shareable URL copied',copyFailed:'Copy the address bar URL to share',single:'Single ToR',dual:'2 racks · Leaf–Spine',quad:'4 racks · Leaf–Spine',rack:'Rack',gpu:'GPU',tor:'ToR',spine:'Spine',selectEvent:'Select message'},
- ko:{brandTag:'GPU Collective 시각화',conceptual:'교육용 시뮬레이터',title:'데이터가 이동하는 모습을 직접 확인하세요.',subtitle:'Collective를 선택하고 재생을 누르면 GPU 간 메시지 이동을 따라갈 수 있어요.',share:'설정 공유',collective:'Collective 연산',algorithm:'알고리즘',gpuCount:'GPU 수',topology:'토폴로지',root:'Root',round:'현재 라운드',physical:'물리 네트워크',logical:'논리 알고리즘',both:'둘 다',networkCanvas:'네트워크 토폴로지',logicalCanvas:'논리적 통신',focusMsg:'선택한 메시지',pathKey:'강조된 경로',notNCCL:'교육용 경로 · 실제 NCCL Trace 아님',logicalKey:'이동 중인 메시지',speed:'속도',follow:'메시지 따라가기',message:'메시지',currentHop:'현재 구간',focusHint:'파란 데이터 마커를 따라가세요. 나머지 전송은 작은 점으로 표시됩니다.',whatsHappening:'현재 라운드에서는?',transfers:'전송 목록',learnTitle:'이 Collective는 무슨 일을 하나요?',modelWarning:'교육용 통신 스케줄과 단순화한 라우팅 모델입니다. OMNeT++, NCCL 실행 Trace, 패킷 수준·성능 시뮬레이션이 아닙니다. NVLink/PCIe, 큐잉, 링크 중재, 혼잡을 모델링하지 않습니다.',nvidiaDocs:'NVIDIA Collective 문서 ↗',footerNote:'AI 데이터센터 통신을 이해하기 위한 시각화 도구.',play:'재생',pause:'일시정지',ready:'준비 완료 — 재생을 누르세요',playing:'메시지 이동 중',paused:'일시정지',complete:'모든 라운드 완료',roundLabel:'라운드',of:'중',messages:'개 메시지 · 현재 라운드',total:'전체',copied:'설정 링크를 복사했습니다',copyFailed:'주소창 URL을 복사하세요',single:'단일 ToR',dual:'2개 Rack · Leaf–Spine',quad:'4개 Rack · Leaf–Spine',rack:'랙',gpu:'GPU',tor:'ToR',spine:'Spine',selectEvent:'메시지 선택'}
+/* CollectiveScope v3: all rank states and all simultaneous transfers. */
+(()=>{'use strict';
+const engine=window.CollectiveSim;
+if(!engine){document.body.insertAdjacentHTML('afterbegin','<p>Simulation model failed to load.</p>');return;}
+const $=id=>document.getElementById(id);
+const PARAMS=new URLSearchParams(location.search);
+const app={op:engine.OPS[PARAMS.get('op')]?PARAMS.get('op'):'alltoall',alg:PARAMS.get('alg')||'pairwise',n:PARAMS.get('gpu')==='8'?8:4,placement:PARAMS.get('placement')==='intra'?'intra':'inter',lang:PARAMS.get('lang')==='ko'?'ko':'en',speed:1,step:0,p:0,playing:false,hold:0,prevTime:0,sim:null,transfers:[],logicalMarkers:[],physicalMarkers:[],lastReveal:false};
+const palette=[['#dae8ff','#9dbdf8','#205db2','#3b73d8'],['#dff9ee','#a9e5ca','#207752','#39a17c'],['#fff0dd','#f1cca3','#9f5b12','#dc9638'],['#f3e7ff','#d5b9f9','#7240a3','#a374cf'],['#fce4e8','#f5b3bd','#a4455b','#dd7188'],['#e3f5f9','#a8dce8','#206f87','#45a5bd'],['#f8efdf','#e8d3aa','#906820','#c6a04e'],['#e9ebfd','#b4bef6','#3b51a3','#7586d7']];
+const M={
+ en:{pageTitle:'See what every GPU sends and receives.',pageSubtitle:'Numbered blocks move together. Compare GPU communication inside one server versus across AI datacenter servers.',eyebrow:'LEARN BY WATCHING',docsText:'NCCL reference',operation:'Collective',algorithm:'Algorithm',gpuCount:'GPUs',placement:'Placement',speed:'Speed',memoryEyebrow:'01 / GPU MEMORY',memoryTitle:'What each GPU holds',owned:'data blocks',updated:'newly received',empty:'not yet received',transferEyebrow:'02 / SIMULTANEOUS TRANSFERS',transferTitle:'All GPUs communicate together',logicalEyebrow:'03 / LOGICAL ALGORITHM',logicalTitle:'Who talks to whom?',physicalEyebrow:'04 / AI DATACENTER VIEW',physicalTitle:'Where does that traffic travel?',thisRound:'This round',logicalLink:'Logical connection',activeTraffic:'Active path',inactiveLink:'Inactive link',modelTitle:'Model scope',modelBadge:'Educational model · not NCCL trace',play:'Play all',pause:'Pause',replay:'Replay',round:'Round',of:'of',complete:'Complete ✓',start:'Start',seeResult:'See final result →',finalResult:'Final result',send:'SEND · TO GPU',received:'RECEIVED · FROM GPU',buffer:'DATA / CHUNKS',rank:'GPU',server:'Server',local:'local',cross:'network',messages:'messages',message:'message',localCount:'local',crossCount:'cross-server',ready:'Press Play to watch all messages move simultaneously.',end:'Every GPU now holds its final output.',detail:'The numbers on every GPU update together at the end of each round.',diagram:'Arrows show each sending and receiving GPU in this step.',localInfo:'GPU traffic remains within the same server, using its local GPU fabric.',interInfo:'Cross-server transfers traverse the network. Same-server transfers remain local.',networkNote:'Simplified path: local GPU fabric → NIC → ToR → Spine → ToR → NIC → GPU fabric.',networkNoteLocal:'Local GPU fabric (illustrative NVLink / NVSwitch path); no ToR or Spine traffic.',modelFootnote:'Discrete rounds and sample values illustrate collective semantics. Real NCCL selects channels, algorithms and routes dynamically; link congestion, time and packets are not simulated.',footTransfer:'Numbers represent logical data chunks, not Ethernet packets.',completeTransfer:'All rounds complete. Choose Replay to watch again.',speedUnits:'×',logicalNetwork:'Pairwise is a schedule, not a physical ring.',logicalRing:'Ring order: every GPU sends to its next neighbor.',logicalTree:'Binomial communication tree rooted at GPU 0.',logicalDirect:'Direct (conceptual) transfers; not a fixed NCCL topology.',toolIntra:'1 server · local GPU fabric',toolInter:'2 racks · GPU fabric + NIC + ToR + Spine',sending:'Sends this round',receiving:'Receives this round',copy:'Copy link ↗',copied:'Link copied ✓'},
+ ko:{pageTitle:'모든 GPU의 데이터가 어떻게 이동하는지 한눈에.',pageSubtitle:'숫자 데이터가 모든 GPU에서 동시에 움직입니다. 서버 내부와 AI 데이터센터의 서버 간 통신을 비교해 보세요.',eyebrow:'직접 보면서 배우기',docsText:'NCCL 공식 문서',operation:'Collective',algorithm:'Algorithm',gpuCount:'GPU 개수',placement:'GPU 배치',speed:'재생 속도',memoryEyebrow:'01 / GPU 메모리',memoryTitle:'각 GPU가 보유한 데이터',owned:'데이터 블록',updated:'새로 받은 값',empty:'아직 못 받은 값',transferEyebrow:'02 / 동시 데이터 전송',transferTitle:'모든 GPU가 동시에 통신',logicalEyebrow:'03 / 논리적 알고리즘',logicalTitle:'누가 누구에게 보내는가?',physicalEyebrow:'04 / AI 데이터센터',physicalTitle:'데이터는 실제 어디로 지나갈까?',thisRound:'현재 라운드',logicalLink:'논리적 연결',activeTraffic:'활성 경로',inactiveLink:'비활성 링크',modelTitle:'모델 범위',modelBadge:'학습용 모델 · NCCL Trace 아님',play:'전체 재생',pause:'일시정지',replay:'처음부터 재생',round:'라운드',of:'/',complete:'완료 ✓',start:'시작',seeResult:'최종 결과 보기 →',finalResult:'최종 결과',send:'전송할 데이터 · GPU',received:'수신 데이터 · GPU',buffer:'데이터 / 청크',rank:'GPU',server:'서버',local:'서버 내부',cross:'서버 간',messages:'전송',message:'전송',localCount:'로컬',crossCount:'서버 간',ready:'재생을 누르면 모든 GPU의 데이터가 동시에 이동합니다.',end:'모든 GPU가 최종 결과를 보유했습니다.',detail:'매 라운드가 끝날 때 모든 GPU의 숫자가 동시에 갱신됩니다.',diagram:'현재 라운드에 통신하는 GPU 쌍을 화살표로 보여줍니다.',localInfo:'같은 서버 안에서는 GPU 로컬 패브릭으로 통신합니다.',interInfo:'서버 간 전송은 NIC와 스위치를 지나고, 같은 서버 내 전송은 로컬 패브릭에 머뭅니다.',networkNote:'단순화된 경로: GPU 패브릭 → NIC → ToR → Spine → ToR → NIC → GPU 패브릭',networkNoteLocal:'서버 내부 GPU 패브릭 (NVLink/NVSwitch 개념도). ToR/Spine 통신 없음.',modelFootnote:'이 사이트는 숫자와 이산 라운드로 Collective의 원리를 설명하는 모델입니다. 실제 NCCL의 채널·알고리즘·경로 선택, 링크 혼잡 및 패킷 단위 통신은 재현하지 않습니다.',footTransfer:'움직이는 숫자는 논리적 데이터 청크이며 Ethernet 패킷이 아닙니다.',completeTransfer:'모든 라운드가 끝났습니다. 처음부터 다시 재생할 수 있어요.',speedUnits:'배',logicalNetwork:'Pairwise는 통신 순서이지 물리적 Ring이 아닙니다.',logicalRing:'Ring 순서: 각 GPU가 다음 GPU에게 보냅니다.',logicalTree:'GPU 0을 Root로 하는 Binomial 통신 Tree.',logicalDirect:'Direct 개념도 (NCCL 고정 토폴로지가 아님).',toolIntra:'서버 1대 · GPU 로컬 패브릭',toolInter:'서로 다른 랙의 서버 2대 · NIC + ToR + Spine',sending:'현재 송신',receiving:'현재 수신',copy:'링크 복사 ↗',copied:'복사 완료 ✓'}
 };
-const algName={en:{ring:'Ring',tree:'Binary tree',direct:'Direct (teaching)',pairwise:'Pairwise'},ko:{ring:'Ring',tree:'이진 트리',direct:'Direct (교육용)',pairwise:'Pairwise'}};
-const q=new URL(location.href).searchParams;
-const op0=Object.hasOwn(core.OPTIONS,q.get('op'))?q.get('op'):'alltoall';
-const s={op:op0,alg:core.OPTIONS[op0].includes(q.get('alg'))?q.get('alg'):core.OPTIONS[op0][0],n:[4,8].includes(+q.get('n'))?+q.get('n'):4,topology:['single','dual','quad'].includes(q.get('topology'))?q.get('topology'):'dual',root:Math.min(7,Math.max(0,Number(q.get('root'))||0)),lang:q.get('lang')==='ko'?'ko':'en',view:['physical','logical','both'].includes(q.get('view'))?q.get('view'):'physical',speed:1,step:0,focus:0,progress:0,playing:false};
-s.root=Math.min(s.n-1,s.root);
-let schedule=core.build(s),rafId=0,lastFrame=0,toastTimeout=0;
-let physicalPositions={},logicalPositions={},physicalTokens=[],logicalTokens=[],lastHop=-1;
-const duration=2600;
-const tr=k=>labels[s.lang][k]||k;
-const escapeHTML=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const current=()=>schedule.steps[s.step];
-const inStep=()=>current().events;
-function chooseVisibleCrossRack(){const idx=inStep().findIndex(e=>core.route(e,s.topology,s.n).some(id=>id.startsWith('spine')));return idx<0?0:idx;}
-const rootVisible=()=>['broadcast','reduce','gather','scatter'].includes(s.op)||s.alg==='tree'||(s.alg==='direct'&&['allreduce','reducescatter'].includes(s.op));
-function initControls(){
- el('op').innerHTML=Object.keys(core.OPTIONS).map(op=>`<option value="${op}">${core.names[op][s.lang]}</option>`).join('');el('op').value=s.op;
- el('alg').innerHTML=core.OPTIONS[s.op].map(a=>`<option value="${a}">${algName[s.lang][a]}</option>`).join('');el('alg').value=s.alg;
- el('n').value=s.n;el('topology').value=s.topology;
- const opts={single:'single',dual:'dual',quad:'quad'};Array.from(el('topology').options).forEach(o=>{o.textContent=tr(opts[o.value]);});
- el('root').innerHTML=Array.from({length:s.n},(_,i)=>`<option value="${i}">R${i}</option>`).join('');el('root').value=s.root;el('rootField').hidden=!rootVisible();
- el('langBtn').textContent=s.lang==='en'?'한국어':'English';el('speed').value=s.speed;
- document.querySelectorAll('[data-t]').forEach(node=>{node.textContent=tr(node.dataset.t);});
- document.querySelectorAll('[data-view]').forEach(btn=>{btn.classList.toggle('active',btn.dataset.view===s.view);btn.setAttribute('aria-pressed',String(btn.dataset.view===s.view));});
- document.documentElement.lang=s.lang;
+const algorithms={ring:'Ring',tree:'Tree',pairwise:'Pairwise',direct:'Direct (Naive)'};
+const visibleName=(op)=>engine.OPS[op].name;
+const t=key=>M[app.lang][key]||key;
+const escaped=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+function getServer(rank){return app.placement==='intra'?0:Math.floor(rank/(app.n/2));}
+function syncURL(){const u=new URL(location.href);u.searchParams.set('op',app.op);u.searchParams.set('alg',app.alg);u.searchParams.set('gpu',String(app.n));u.searchParams.set('placement',app.placement);u.searchParams.set('lang',app.lang);history.replaceState(null,'',u);}
+function updateLanguage(){document.documentElement.lang=app.lang;document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));for(const id of ['pageTitle','pageSubtitle','eyebrow','docsText','modelBadge','modelFootnote','stepStart'])$(id).textContent=t(id==='stepStart'?'start':id);$('langToggle').textContent=app.lang==='en'?'한국어':'English';$('copyBtn').textContent=t('copy');$('finishBtn').textContent=t('seeResult');document.querySelectorAll('[data-placement]').forEach(b=>b.textContent=b.dataset.placement==='intra'?'Intra-server':'Inter-server');}
+function refreshAlgOptions(){const opts=engine.OPS[app.op].algs;if(!opts.includes(app.alg))app.alg=opts[0];$('algSelect').innerHTML=opts.map(a=>`<option value="${a}">${algorithms[a]}</option>`).join('');$('algSelect').value=app.alg;}
+function reset(){app.playing=false;app.step=0;app.p=0;app.hold=0;app.lastReveal=false;app.sim=engine.build({op:app.op,alg:app.alg,n:app.n});refreshAlgOptions();app.alg=app.sim.alg;app.sim=engine.build({op:app.op,alg:app.alg,n:app.n});$('opSelect').value=app.op;$('algSelect').value=app.alg;$('stepRange').max=String(app.sim.frames.length);$('stepRange').value='0';document.querySelectorAll('[data-gpu]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.gpu)===app.n));document.querySelectorAll('[data-placement]').forEach(b=>b.classList.toggle('selected',b.dataset.placement===app.placement));$('speedSelect').value=String(app.speed);$('opTitle').textContent=`${visibleName(app.op)} · ${algorithms[app.alg]}`;$('opDesc').textContent=app.lang==='en'?app.sim.options.desc:app.sim.options.ko;$('networkMode').textContent=t(app.placement==='intra'?'toolIntra':'toolInter');updateLanguage();syncURL();renderAll();}
+function currentFrame(){return app.sim.frames[app.step]||null;}
+function afterReveal(){return app.step>=app.sim.frames.length||app.p>=.95;}
+function valuesAt(){if(app.step>=app.sim.frames.length)return app.sim.final;const frame=currentFrame();return afterReveal()?frame.after:frame.before;}
+function updatedIndices(rank){const f=currentFrame();if(!f||!afterReveal())return[];const prev=f.before[rank].values,now=f.after[rank].values;return now.map((v,i)=>v!==prev[i]?i:-1).filter(x=>x>=0);}
+function chipHtml(value,index,which,rank,active,changed){const empty=value===null||value===undefined;const cls=['value-chip',empty?'empty':'',changed?'received':'',active?'highlight':''].filter(Boolean).join(' ');return `<div class="${cls}" data-index="${index}"><small>${which==='send'?`→${index}`:which==='inbox'?`←${index}`:`C${index}`}</small><strong>${empty?'·':escaped(value)}</strong></div>`;}
+function renderGPUs(){const {n,op}=app.sim,values=valuesAt(),f=currentFrame();const activeFrom=new Set(f?.packets.map(p=>p.from)||[]),activeTo=new Set(f?.packets.map(p=>p.to)||[]);const count=app.placement==='intra'?1:2;const groupSize=n/count;let html='';for(let server=0;server<count;server++){
+  const gpus=Array.from({length:groupSize},(_,i)=>server*groupSize+i);html+=`<div class="server-group ${count===1?'full':''}"><div class="server-header"><span>${t('server')} ${String.fromCharCode(65+server)}</span><span class="server-tag">${app.placement==='intra'?'GPU fabric':`GPU fabric + NIC`}</span></div><div class="server-gpus" style="--gpu-columns:${Math.min(4,groupSize)}">`;
+  for(const r of gpus){const p=palette[r];const card=values[r];const className=activeFrom.has(r)?'active-send':activeTo.has(r)?'active-recv':'';const updated=updatedIndices(r);const sendIdx=new Set((f?.packets||[]).filter(e=>e.from===r).flatMap(e=>e.indices));
+   html+=`<article class="gpu-card ${className}" style="--rank-color:${p[3]}"><div class="gpu-card-top"><span class="gpu-title"><i class="gpu-dot"></i> GPU ${r}</span><span class="gpu-small">Rank ${r}</span></div>`;
+   if(op==='alltoall'){html+=`<div class="buffer-label">${t('send')}</div><div class="values-grid" style="--tiles:${n<=4?4:4}">${card.send.map((v,i)=>chipHtml(v,i,'send',r,sendIdx.has(i),false)).join('')}</div>`;html+=`<div class="buffer-label">${t('received')}</div><div class="values-grid" style="--tiles:${n<=4?4:4}">${card.values.map((v,i)=>chipHtml(v,i,'inbox',r,false,updated.includes(i))).join('')}</div>`;
+   }else{html+=`<div class="buffer-label">${t('buffer')}</div><div class="values-grid" style="--tiles:${Math.min(4,card.values.length)}">${card.values.map((v,i)=>chipHtml(v,i,'recv',r,sendIdx.has(i),updated.includes(i))).join('')}</div>`;}
+   html+='</article>';
+  }html+='</div></div>';
+ }$('gpuBoard').innerHTML=html;
 }
-function saveURL(){try{const u=new URL(location.href);for(const k of ['op','alg','n','topology','root','lang','view'])u.searchParams.set(k,s[k]);history.replaceState(null,'',u);}catch(_){}}
-function mk(tag,attrs={},parent){const node=document.createElementNS(svgNS,tag);for(const [k,v] of Object.entries(attrs))node.setAttribute(k,String(v));if(parent)parent.appendChild(node);return node;}
-function st(text,x,y,attrs={},parent){const node=mk('text',{x,y,'text-anchor':'middle',class:'node-label',...attrs},parent);node.textContent=text;return node;}
-const key=(a,b)=>[a,b].sort().join('|');
-function computeFabric(){
- const racks=s.topology==='single'?1:s.topology==='dual'?2:4;
- const centers=racks===1?[460]:racks===2?[240,680]:[125,350,575,800];
- const pts={};const gpuRack=i=>Math.min(racks-1,Math.floor(i*racks/s.n));
- centers.forEach((x,r)=>{pts[`tor${r}`]={x,y:228,type:'tor',rack:r};const ranks=Array.from({length:s.n},(_,i)=>i).filter(i=>gpuRack(i)===r);const span=racks===1?670:racks===2?Math.min(280,88*(ranks.length-1)):92; ranks.forEach((rank,i)=>{pts[`gpu${rank}`]={x:x+(ranks.length===1?0:(i/(ranks.length-1)-.5)*span),y:370,type:'gpu',rank,rack:r};});});
- if(racks>1){pts.spine0={x:360,y:83,type:'spine'};pts.spine1={x:560,y:83,type:'spine'};}
- return {pts,racks,centers};
+function transferGroupMarkup(packets){const isMany=packets.length>app.n*2;let html='';if(isMany){const grouped=Array.from({length:app.n},(_,r)=>packets.filter(p=>p.from===r));for(let r=0;r<grouped.length;r++){const group=grouped[r];html+=`<div class="flow-row multi" style="--rank-color:${palette[r][3]}"><span class="flow-from"><i></i>GPU ${r}</span><div class="flow-track multi-track" style="height:60px">${group.map((p,k)=>{const col=k%4,row=Math.floor(k/4);return `<span class="flow-token grouped" data-token="${packets.indexOf(p)}" style="--rank-bg:${palette[r][0]};--rank-border:${palette[r][1]};--rank-ink:${palette[r][2]};top:${row*27}px;left:${col*52}px;font-size:10px">${escaped(p.valueLabel)}<small>→${p.to}</small></span>`;}).join('')}</div><span class="flow-end">${group.length} ${t('messages')}</span></div>`;}
+}else{
+ for(let i=0;i<packets.length;i++){const p=packets[i];const isLocal=getServer(p.from)===getServer(p.to),col=palette[p.from];html+=`<div class="flow-row ${isLocal?'local':'cross'}" style="--rank-color:${col[3]}"><span class="flow-from"><i></i>GPU ${p.from}</span><div class="flow-track"><span class="flow-token" data-token="${i}" style="--rank-bg:${col[0]};--rank-border:${col[1]};--rank-ink:${col[2]}">${escaped(p.valueLabel)}</span></div><span class="flow-end">GPU ${p.to}</span><span class="flow-kind ${isLocal?'local':''}">${t(isLocal?'local':'cross')}</span></div>`;}
+}return html;}
+function renderTransfers(){const f=currentFrame();app.transfers=[];if(!f){$('transferGrid').innerHTML=`<div class="completed-state">✓ ${t('completeTransfer')}</div>`;$('transferCount').textContent='0';$('transferNote').textContent=t('end');return;}
+ const {packets}=f;$('transferCount').textContent=`${packets.length} ${t('messages')}`;$('transferGrid').innerHTML=transferGroupMarkup(packets);$('transferNote').textContent=app.lang==='ko'?f.ko:f.label;$('transferFooter').textContent=t('footTransfer');app.transfers=[...$('transferGrid').querySelectorAll('[data-token]')].map(el=>({el,index:Number(el.dataset.token)}));}
+function point(r){if(app.alg==='tree'&&['allreduce','reduce','broadcast','gather','scatter'].includes(app.op)){
+ const preset={0:[206,35],1:[66,151],2:[150,91],3:[148,180],4:[311,91],5:[370,172],6:[284,164],7:[284,221]};return preset[r];}
+ const a=-Math.PI/2+2*Math.PI*r/app.n;return [210+108*Math.cos(a),128+92*Math.sin(a)];}
+function svgLine(a,b,cls='',more=''){return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" ${more} class="${cls}"/>`;}
+const logicalBase=()=>{
+ if(app.alg==='ring')return Array.from({length:app.n},(_,r)=>[r,(r+1)%app.n]);
+ if(app.alg==='tree')return engine.stages(app.n).flatMap(s=>s.map(e=>[e.from,e.to]));return [];
+};
+function renderLogical(){const svg=$('logicalSvg'),f=currentFrame(),base=logicalBase();let html=`<defs><marker id="arrowGrey" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#cad6e6" stroke-width="1.2"/></marker><marker id="arrowBlue" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#3575d5" stroke-width="1.3"/></marker></defs>`;
+ for(const [a,b] of base)html+=svgLine(point(a),point(b),'',`stroke="#e1e8f2" stroke-width="2" marker-end="url(#arrowGrey)"`);
+ app.logicalMarkers=[];
+ if(f){for(const [i,p] of f.packets.entries()){
+  const a=point(p.from),b=point(p.to);const opacity=f.packets.length>20?'.15':'.7';html+=svgLine(a,b,'',`stroke="#3777da" stroke-width="${f.packets.length>20?'1':'2.5'}" opacity="${opacity}" marker-end="url(#arrowBlue)"`);
+  html+=`<circle id="log-m-${i}" cx="${a[0]}" cy="${a[1]}" r="${f.packets.length>20?3:5}" fill="${palette[p.from][3]}" stroke="white" stroke-width="1.5"/>`;app.logicalMarkers.push({id:`log-m-${i}`,pts:[a,b]});
+ }}
+ for(let r=0;r<app.n;r++){const pos=point(r);html+=`<circle cx="${pos[0]}" cy="${pos[1]}" r="${app.n===8?16:19}" fill="white" stroke="#b7c8df" stroke-width="1.7"/><circle cx="${pos[0]-10}" cy="${pos[1]-10}" r="3.6" fill="${palette[r][3]}"/><text x="${pos[0]}" y="${pos[1]+4}" font-size="${app.n===8?11:12}" font-weight="750" text-anchor="middle" fill="#30445e">${r}</text>`;}
+ svg.innerHTML=html;$('logicalName').textContent=algorithms[app.alg];$('logicalNote').textContent=t(app.alg==='ring'?'logicalRing':app.alg==='tree'?'logicalTree':app.alg==='pairwise'?'logicalNetwork':'logicalDirect');app.logicalMarkers.forEach(m=>m.el=$(m.id));
 }
-function computeLogical(){const pts={};if(s.alg==='tree'){
-  const order=[s.root,...Array.from({length:s.n},(_,i)=>i).filter(i=>i!==s.root)];for(let i=0;i<s.n;i++){const depth=Math.floor(Math.log2(i+1)),index=i-(2**depth-1);pts[order[i]]={x:265+((index+.5)/2**depth-.5)*455,y:90+depth*110};}
- }else{for(let i=0;i<s.n;i++){const a=-Math.PI/2+2*Math.PI*i/s.n;pts[i]={x:265+177*Math.cos(a),y:232+162*Math.sin(a)};}}
- return pts;}
-function coordsOfEvent(e){return core.route(e,s.topology,s.n).map(id=>physicalPositions[id]);}
-function drawBaseFabric(svg,layout){
- const {pts,racks,centers}=layout;
- mk('title',{},svg).textContent='Physical network — animated message route';
- centers.forEach((x,r)=>{const width=racks===1?840:racks===2?386:195;mk('rect',{x:x-width/2,y:168,width,height:265,rx:11,fill:'#f6f8fc',stroke:'#e3e9f1','stroke-width':1.2},svg);st(`${tr('rack')} ${r}`,x,192,{class:'node-sub','font-size':12},svg);});
- const links=[];const add=(a,b)=>{const p=pts[a],q=pts[b];if(p&&q)links.push([a,b]);};
- for(let r=0;r<racks;r++){for(let i=0;i<s.n;i++){if(pts[`gpu${i}`].rack===r)add(`gpu${i}`,`tor${r}`);}if(racks>1){add(`tor${r}`,'spine0');add(`tor${r}`,'spine1');}}
- const active=core.loadMap(current(),s.topology,s.n),focus=inStep()[s.focus],focused=core.route(focus,s.topology,s.n),focusEdges=new Set(focused.slice(1).map((id,i)=>key(focused[i],id)));
- links.forEach(([a,b])=>{const p=pts[a],q=pts[b],k=key(a,b);mk('line',{x1:p.x,y1:p.y,x2:q.x,y2:q.y,stroke:focusEdges.has(k)?'#2869ed':active[k]?'#a5bfe6':'#cbd5e1','stroke-width':focusEdges.has(k)?5:active[k]?2.3:1.8,'stroke-linecap':'round',opacity:focusEdges.has(k)?1:active[k]?.75:.66},svg);});
- // Rings show source/destination by color; link overlays remain visible behind nodes.
- Object.entries(pts).forEach(([id,p])=>{
-  if(p.type==='gpu'){
-   const isSource=focus.from===p.rank,isDest=focus.to===p.rank;
-   mk('rect',{x:p.x-33,y:p.y-24,width:66,height:48,rx:10,fill:isSource?'#e9f1ff':isDest?'#e8f7f1':'#fff',stroke:isSource?'#2666ed':isDest?'#229f70':'#aabacf','stroke-width':isSource||isDest?2.6:1.5},svg);
-   mk('rect',{x:p.x-23,y:p.y-9,width:12,height:18,rx:2,fill:isSource?'#2c68ef':isDest?'#2aa374':'#99acc4'},svg);
-   st(`GPU ${p.rank}`,p.x+8,p.y+4,{'font-size':12},svg);
-  }else{
-   const isSpine=p.type==='spine';mk('rect',{x:p.x-43,y:p.y-21,width:86,height:42,rx:9,fill:'#fff',stroke:'#a6b7ca','stroke-width':1.7},svg);
-   mk('rect',{x:p.x-30,y:p.y-8,width:9,height:5,rx:1,fill:'#94a8bf'},svg);mk('rect',{x:p.x-30,y:p.y+1,width:9,height:5,rx:1,fill:'#94a8bf'},svg);
-   st(isSpine?`${tr('spine')} ${id.slice(-1)}`:`${tr('tor')} ${p.rack}`,p.x+11,p.y+4,{'font-size':12},svg);
-  }
- });
- // Explicit path start/end markings aid interpretation when many messages coexist.
- const src=pts[`gpu${focus.from}`],dst=pts[`gpu${focus.to}`];
- st(s.lang==='ko'?'출발':'SOURCE',src.x,src.y+39,{class:'node-sub',fill:'#2563eb','font-size':11},svg);
- st(s.lang==='ko'?'도착':'DEST',dst.x,dst.y+39,{class:'node-sub',fill:'#14804b','font-size':11},svg);
+const physicalNodes=()=>{const gpu=[];if(app.placement==='intra'){for(let r=0;r<app.n;r++)gpu.push([80+r*800/(app.n-1),52]);return {gpu,sw:[[480,155]],nic:[],tor:[],spine:null};}
+ const half=app.n/2;for(let r=0;r<app.n;r++){const group=r<half?0:1,idx=r%half;gpu.push([(group===0?66:560)+idx*(group===0?290:290)/(half-1),44]);}
+ return {gpu,sw:[[245,128],[715,128]],nic:[[245,176],[715,176]],tor:[[367,223],[593,223]],spine:[480,223]};};
+function physicalRoute(p,nodes){const sa=getServer(p.from),sb=getServer(p.to);if(sa===sb)return[nodes.gpu[p.from],nodes.sw[sa],nodes.gpu[p.to]];
+ return[nodes.gpu[p.from],nodes.sw[sa],nodes.nic[sa],nodes.tor[sa],nodes.spine,nodes.tor[sb],nodes.nic[sb],nodes.sw[sb],nodes.gpu[p.to]];}
+function activeLinks(points){return points.slice(1).map((v,i)=>[points[i],v]);}
+function networkShapes(nodes){let html='';const drawGPU=(p,r)=>`<rect x="${p[0]-28}" y="${p[1]-15}" width="56" height="30" rx="7" fill="#fff" stroke="#bdcce0" stroke-width="1.5"/><circle cx="${p[0]-17}" cy="${p[1]-6}" r="3.5" fill="${palette[r][3]}"/><text x="${p[0]}" y="${p[1]+4}" text-anchor="middle" fill="#40516b" font-size="11" font-weight="730">GPU ${r}</text>`;
+ const label=(p,title,w=124)=>`<rect x="${p[0]-w/2}" y="${p[1]-15}" width="${w}" height="30" rx="7" fill="#edf4ff" stroke="#8eb7f5" stroke-width="1.2"/><text x="${p[0]}" y="${p[1]+4}" text-anchor="middle" font-size="12" font-weight="700" fill="#3769b2">${title}</text>`;
+ const ln=(a,b)=>svgLine(a,b,'',`stroke="#d5e0ed" stroke-width="2.2"`);
+ if(app.placement==='intra'){
+ html+=`<rect x="21" y="16" width="918" height="222" rx="14" fill="#f5f9ff" stroke="#dae5f3"/><text x="42" y="221" fill="#8da0b5" font-size="12" font-weight="650">SERVER A · LOCAL GPU FABRIC</text>`;
+ for(const gpu of nodes.gpu)html+=ln(gpu,nodes.sw[0]);html+=label(nodes.sw[0],'NVLink / NVSwitch',148);nodes.gpu.forEach((p,r)=>html+=drawGPU(p,r));
+ }else{
+  html+=`<rect x="25" y="12" width="385" height="178" rx="12" fill="#f6f9fd" stroke="#dce5f0"/><rect x="550" y="12" width="385" height="178" rx="12" fill="#f6f9fd" stroke="#dce5f0"/><text x="48" y="28" fill="#8194ab" font-size="11" font-weight="750">SERVER A</text><text x="573" y="28" fill="#8194ab" font-size="11" font-weight="750">SERVER B</text>`;
+  for(let r=0;r<app.n;r++)html+=ln(nodes.gpu[r],nodes.sw[getServer(r)]);
+  for(let i=0;i<2;i++){html+=ln(nodes.sw[i],nodes.nic[i]);html+=ln(nodes.nic[i],nodes.tor[i]);html+=ln(nodes.tor[i],nodes.spine);}
+  html+=label(nodes.sw[0],'GPU fabric',112)+label(nodes.sw[1],'GPU fabric',112)+label(nodes.nic[0],'NIC',67)+label(nodes.nic[1],'NIC',67)+label(nodes.tor[0],'ToR A',80)+label(nodes.tor[1],'ToR B',80)+label(nodes.spine,'Spine',80);
+  nodes.gpu.forEach((p,r)=>html+=drawGPU(p,r));
+ }
+ return html;
 }
-function drawBaseLogical(svg,pts){
- mk('title',{},svg).textContent='Logical algorithm — moving selected communication message';
- const e=inStep()[s.focus];
- const edges=[];
- if(s.alg==='ring')for(let i=0;i<s.n;i++)edges.push([i,(i+1)%s.n]);
- if(s.alg==='tree')for(const level of core.treeFor(s.n,s.root))for(const p of level)edges.push([p.from,p.to]);
- edges.forEach(([a,b])=>mk('line',{x1:pts[a].x,y1:pts[a].y,x2:pts[b].x,y2:pts[b].y,stroke:'#ced9e7','stroke-width':2.1,'stroke-dasharray':'5 6'},svg));
- const active=inStep().slice(0,18);
- active.forEach(ev=>{if(ev===e)return;const a=pts[ev.from],b=pts[ev.to];mk('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'#a3bceb','stroke-width':2,opacity:.5},svg);});
- const a=pts[e.from],b=pts[e.to];mk('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'#2563eb','stroke-width':4,'stroke-linecap':'round'},svg);
- for(let i=0;i<s.n;i++){const p=pts[i];mk('circle',{cx:p.x,cy:p.y,r:28,fill:i===e.from?'#e9f1ff':i===e.to?'#e8f7f1':'#fff',stroke:i===e.from?'#2563eb':i===e.to?'#229f70':'#9caec5','stroke-width':i===e.from||i===e.to?2.7:1.7},svg);st(`R${i}`,p.x,p.y+5,{'font-size':16},svg);}
-}
-function pathPoint(coords,t){
- const seg=[];let total=0;
- for(let i=1;i<coords.length;i++){const a=coords[i-1],b=coords[i];const len=Math.hypot(b.x-a.x,b.y-a.y);seg.push(len);total+=len;}
- let remain=Math.max(0,Math.min(1,t))*total;
- for(let i=0;i<seg.length;i++){if(remain<=seg[i]||i===seg.length-1){const f=seg[i]?Math.min(1,remain/seg[i]):0;return {x:coords[i].x+(coords[i+1].x-coords[i].x)*f,y:coords[i].y+(coords[i+1].y-coords[i].y)*f,hop:i};}remain-=seg[i];}
- return {x:coords[0].x,y:coords[0].y,hop:0};
-}
-function drawToken(svg,isFocus,label,isLogical){const g=mk('g',{'data-packet':isFocus?'focus':'other', 'aria-hidden':'true'},svg);
- if(isFocus){mk('rect',{x:-21,y:-15,width:42,height:30,rx:8,fill:'#2563eb',stroke:'#fff','stroke-width':2,filter:'drop-shadow(0 2px 4px #0e4ca644)'},g);st(label.length>5?label.slice(0,5):label,0,4,{class:'flow-label','font-size':label.length>3?9:11},g);}else{mk('circle',{r:isLogical?6:6.5,fill:'#88abef',stroke:'#fff','stroke-width':1.8,opacity:.9},g);}return g;}
-function drawCanvases(){
- const phys=el('fabricSvg'),log=el('logicalSvg');phys.replaceChildren();log.replaceChildren();
- const layout=computeFabric();physicalPositions=layout.pts;logicalPositions=computeLogical();
- drawBaseFabric(phys,layout);drawBaseLogical(log,logicalPositions);
- const evs=inStep();const limited=evs.map((_,i)=>i).filter(i=>i!==s.focus).slice(0,11);const indices=[...limited,s.focus];
- physicalTokens=[];logicalTokens=[];
- indices.forEach(i=>{
-  const e=evs[i],f=i===s.focus;
-  const points=coordsOfEvent(e);
-  const token=drawToken(phys,f,shortLabel(e),false);physicalTokens.push({node:token,coords:points,focus:f});
-  const logical=drawToken(log,f,shortLabel(e),true);logicalTokens.push({node:logical,coords:[logicalPositions[e.from],logicalPositions[e.to]],focus:f});
- });
- el('networkTag').textContent=s.topology==='single'?'1 TOR':s.topology==='dual'?'2 RACKS · 2 SPINES':'4 RACKS · 2 SPINES';
- el('logicalTag').textContent=s.alg.toUpperCase();
- updatePackets();
-}
-function shortLabel(e){return e.chunk.length>5?`${e.from}→${e.to}`:e.chunk;}
-function nodeName(id){if(id.startsWith('gpu'))return `${tr('gpu')} ${id.slice(3)}`;if(id.startsWith('tor'))return `${tr('tor')} ${id.slice(3)}`;return `${tr('spine')} ${id.slice(5)}`;}
-function updatePackets(){
- for(const o of physicalTokens){const p=pathPoint(o.coords,s.progress);o.node.setAttribute('transform',`translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})`);}
- for(const o of logicalTokens){const p=pathPoint(o.coords,s.progress);o.node.setAttribute('transform',`translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})`);}
- el('roundProgress').style.width=(s.progress*100).toFixed(2)+'%';
- const route=core.route(inStep()[s.focus],s.topology,s.n),point=pathPoint(route.map(id=>physicalPositions[id]),s.progress),hop=Math.min(point.hop,route.length-2);
- if(hop!==lastHop){lastHop=hop;el('hopText').textContent=`${nodeName(route[hop])} → ${nodeName(route[hop+1])}`;}
-}
-function renderStep(){
- const step=current(),events=step.events;
- el('stepCount').textContent=`${s.step+1} / ${schedule.steps.length}`;
- el('stepTitle').textContent=step.phase[s.lang];el('stepSub').textContent=step.summary[s.lang];
- el('timelineText').textContent=`${s.step+1} / ${schedule.steps.length}`;
- el('scrub').max=String(Math.max(0,schedule.steps.length-1));el('scrub').value=s.step;
- el('prevBtn').disabled=s.step===0;el('nextBtn').disabled=s.step===schedule.steps.length-1;
- el('eventCount').textContent=`${s.focus+1} ${tr('of')} ${events.length}`;el('stepBadge').textContent=`${tr('roundLabel')} ${s.step+1}`;
- el('eventSelect').innerHTML=events.map((e,i)=>`<option value="${i}">R${e.from} → R${e.to} · ${escapeHTML(e.chunk)}</option>`).join('');el('eventSelect').value=s.focus;
- el('transferCount').textContent=`${events.length} ${tr('total')}`;
- el('transferList').innerHTML=events.slice(0,24).map((e,i)=>`<button type="button" class="transfer-pill${i===s.focus?' selected':''}" data-event="${i}">R${e.from} <b>→</b> R${e.to}</button>`).join('')+(events.length>24?`<span class="transfer-pill">+${events.length-24}</span>`:'');
- el('stepExplain').textContent=step.detail[s.lang]||core.descriptions[s.op][s.lang];
- el('opExplain').textContent=core.descriptions[s.op][s.lang];
- el('messageCount').textContent=`${events.length} ${tr('messages')}`;
- const route=core.route(events[s.focus],s.topology,s.n);el('routeText').textContent=route.map(nodeName).join('  →  ');
- lastHop=-1;drawCanvases();renderControls();
-}
-function renderControls(){
- el('playText').textContent=tr(s.playing?'pause':'play');el('playGlyph').textContent=s.playing?'Ⅱ':'▶';
- el('playBtn').setAttribute('aria-label',tr(s.playing?'pause':'play'));
- el('playStatus').textContent=s.playing?`● ${tr('playing')}`:(s.step===schedule.steps.length-1&&s.progress>=1?tr('complete'):s.progress>0?tr('paused'):tr('ready'));
-}
-function syncView(){el('canvasGrid').className='canvas-grid '+(s.view==='physical'?'physical-only':s.view==='logical'?'logical-only':'both');document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===s.view);b.setAttribute('aria-pressed',String(b.dataset.view===s.view));});}
-function restart(){pause();s.step=0;s.progress=0;s.focus=0;s.root=Math.min(s.n-1,s.root);schedule=core.build(s);s.focus=chooseVisibleCrossRack();initControls();syncView();renderStep();saveURL();}
-function pause(){s.playing=false;if(rafId){cancelAnimationFrame(rafId);rafId=0;}lastFrame=0;renderControls();}
-function stepTo(next){pause();s.step=Math.max(0,Math.min(schedule.steps.length-1,next));s.progress=0;s.focus=chooseVisibleCrossRack();renderStep();}
-function animate(now){if(!s.playing)return;const diff=lastFrame?Math.min(100,now-lastFrame):0;lastFrame=now;s.progress=Math.min(1,s.progress+(diff*s.speed)/duration);
- updatePackets();
- if(s.progress>=1){if(s.step>=schedule.steps.length-1){pause();return;}s.step++;s.focus=chooseVisibleCrossRack();s.progress=0;renderStep();}
- if(s.playing)rafId=requestAnimationFrame(animate);
-}
-function play(){if(s.playing){pause();return;}
- if(s.step===schedule.steps.length-1 && s.progress>=1){s.step=0;s.progress=0;s.focus=chooseVisibleCrossRack();renderStep();}
- s.playing=true;lastFrame=0;renderControls();rafId=requestAnimationFrame(animate);
-}
-function changeFocus(index){s.focus=Math.max(0,Math.min(inStep().length-1,index));s.progress=0;renderStep();}
-let toastId=0;function toast(txt){clearTimeout(toastId);el('toast').textContent=txt;el('toast').classList.add('show');toastId=setTimeout(()=>el('toast').classList.remove('show'),2200);}
-// Controls
-el('op').addEventListener('change',e=>{s.op=e.target.value;s.alg=core.OPTIONS[s.op][0];restart();});
-el('alg').addEventListener('change',e=>{s.alg=e.target.value;restart();});
-el('n').addEventListener('change',e=>{s.n=+e.target.value;restart();});
-el('topology').addEventListener('change',e=>{s.topology=e.target.value;restart();});
-el('root').addEventListener('change',e=>{s.root=+e.target.value;restart();});
-el('langBtn').addEventListener('click',()=>{s.lang=s.lang==='en'?'ko':'en';const wasPlaying=s.playing;pause();initControls();renderStep();syncView();saveURL();if(wasPlaying)play();});
-el('speed').addEventListener('change',e=>{s.speed=+e.target.value;});
-el('playBtn').addEventListener('click',play);
-el('resetBtn').addEventListener('click',()=>stepTo(0));
-el('prevBtn').addEventListener('click',()=>stepTo(s.step-1));
-el('nextBtn').addEventListener('click',()=>stepTo(s.step+1));
-el('scrub').addEventListener('input',e=>stepTo(+e.target.value));
-el('eventSelect').addEventListener('change',e=>changeFocus(+e.target.value));
-el('transferList').addEventListener('click',e=>{const b=e.target.closest('[data-event]');if(b)changeFocus(+b.dataset.event);});
-document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{s.view=b.dataset.view;syncView();saveURL();}));
-el('shareBtn').addEventListener('click',async()=>{saveURL();try{await navigator.clipboard.writeText(location.href);toast(tr('copied'));}catch(_){toast(tr('copyFailed'));}});
-window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement?.tagName))return;if(e.code==='Space'){e.preventDefault();play();}else if(e.code==='ArrowRight'){stepTo(s.step+1);}else if(e.code==='ArrowLeft'){stepTo(s.step-1);}});
-restart();
-// Read-only diagnostics for the automated regression suite; no mutations exposed.
-window.__collectiveScopeDebug=()=>({playing:s.playing,step:s.step,progress:s.progress,focus:s.focus,op:s.op,alg:s.alg,view:s.view,packetCount:physicalTokens.length,physicalMarkers:physicalTokens.map(p=>p.node.getAttribute('transform'))});
+function renderPhysical(){const svg=$('physicalSvg'),f=currentFrame(),nodes=physicalNodes();let html=networkShapes(nodes);app.physicalMarkers=[];
+ let local=0,cross=0;
+ if(f){for(const [i,p] of f.packets.entries()){const src=getServer(p.from),dst=getServer(p.to);if(src===dst)local++;else cross++;const pts=physicalRoute(p,nodes);const path=pts.map((a,j)=>`${j===0?'M':'L'} ${a[0]} ${a[1]}`).join(' ');html+=`<path d="${path}" fill="none" stroke="${src===dst?'#8698af':'#3f7ee9'}" stroke-width="${f.packets.length>20?1.4:3.1}" stroke-linecap="round" stroke-linejoin="round" opacity="${f.packets.length>20?'.13':'.6'}"/>`;html+=`<circle id="phy-m-${i}" r="${f.packets.length>20?3:5.5}" cx="${pts[0][0]}" cy="${pts[0][1]}" fill="${palette[p.from][3]}" stroke="white" stroke-width="1.5"><title>GPU ${p.from} → GPU ${p.to}: ${escaped(p.valueLabel)}</title></circle>`;app.physicalMarkers.push({id:`phy-m-${i}`,pts});}}
+ svg.innerHTML=html;app.physicalMarkers.forEach(m=>m.el=$(m.id));$('networkCount').textContent=`${cross} ${t('crossCount')} · ${local} ${t('localCount')}`;$('physicalNote').textContent=t(app.placement==='intra'?'localInfo':'interInfo');$('networkFootnote').textContent=t(app.placement==='intra'?'networkNoteLocal':'networkNote');}
+function renderStatus(){const f=currentFrame(),max=app.sim.frames.length;$('stageTitle').textContent=f?`${t('round')} ${app.step+1} ${t('of')} ${max}`:`${t('complete')}`;$('stageHint').textContent=f?(app.lang==='en'?f.label:f.ko):t('end');$('stepRange').value=String(app.step);$('stepEnd').textContent=t('complete');$('playIcon').textContent=app.playing?'Ⅱ':'▶';$('playText').textContent=app.playing?t('pause'):app.step>=max?t('replay'):t('play');$('prevBtn').disabled=app.step===0&&app.p===0;$('nextBtn').disabled=app.step>=max;$('finishBtn').disabled=app.step>=max;}
+function renderAll(){renderGPUs();renderTransfers();renderLogical();renderPhysical();renderStatus();paintMotion();}
+function interpolate(pts,p){if(pts.length<2)return pts[0]||[0,0];const lengths=[];let total=0;for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]);lengths.push(len);total+=len;}let travel=Math.max(0,Math.min(1,p))*total;for(let i=0;i<lengths.length;i++){if(travel<=lengths[i]||i===lengths.length-1){const a=pts[i],b=pts[i+1],q=lengths[i]?travel/lengths[i]:1;return[a[0]+(b[0]-a[0])*q,a[1]+(b[1]-a[1])*q];}travel-=lengths[i];}return pts.at(-1);}
+function paintMotion(){const p=app.p;for(const item of app.transfers){const el=item.el,track=el.parentElement;if(!track)continue;const width=track.clientWidth,offset=el.classList.contains('grouped')?parseFloat(el.style.left)||0:0;const distance=el.classList.contains('grouped')?Math.max(0,width-el.offsetWidth-4*53):Math.max(0,width-el.offsetWidth-offset-1);el.style.transform=`translateX(${(p*distance).toFixed(2)}px)`;}
+ for(const arr of [app.logicalMarkers,app.physicalMarkers])for(const m of arr){if(!m.el)continue;const [x,y]=interpolate(m.pts,p);m.el.setAttribute('cx',x.toFixed(1));m.el.setAttribute('cy',y.toFixed(1));}}
+function pause(){app.playing=false;app.hold=0;renderStatus();}
+function play(){if(app.playing){pause();return;}if(app.step>=app.sim.frames.length){app.step=0;app.p=0;app.hold=0;app.lastReveal=false;renderAll();}app.playing=true;app.prevTime=performance.now();renderStatus();}
+function seek(index){pause();app.step=Math.min(app.sim.frames.length,Math.max(0,index));app.p=0;app.lastReveal=false;renderAll();}
+function frameLoop(now){if(app.playing){const dt=Math.max(0,Math.min(90,now-app.prevTime));app.prevTime=now;const duration=1950/app.speed;if(app.p<1){app.p=Math.min(1,app.p+dt/duration);paintMotion();const reveal=afterReveal();if(reveal!==app.lastReveal){app.lastReveal=reveal;renderGPUs();}if(app.p===1)app.hold=0;}else {app.hold+=dt;if(app.hold>380){app.step++;app.p=0;app.hold=0;app.lastReveal=false;if(app.step>=app.sim.frames.length){pause();renderAll();}else renderAll();}}}requestAnimationFrame(frameLoop);}
+// User input
+$('opSelect').addEventListener('change',e=>{app.op=e.target.value;app.alg=engine.OPS[app.op].algs[0];reset();});
+$('algSelect').addEventListener('change',e=>{app.alg=e.target.value;reset();});
+document.querySelectorAll('[data-gpu]').forEach(b=>b.addEventListener('click',()=>{app.n=Number(b.dataset.gpu);reset();}));
+document.querySelectorAll('[data-placement]').forEach(b=>b.addEventListener('click',()=>{app.placement=b.dataset.placement;reset();}));
+$('speedSelect').addEventListener('change',e=>{app.speed=Number(e.target.value);});
+$('langToggle').addEventListener('click',()=>{app.lang=app.lang==='en'?'ko':'en';reset();});
+$('playBtn').addEventListener('click',play);$('prevBtn').addEventListener('click',()=>seek(app.step-1));$('nextBtn').addEventListener('click',()=>seek(app.step+1));$('restartBtn').addEventListener('click',()=>seek(0));$('finishBtn').addEventListener('click',()=>seek(app.sim.frames.length));$('stepRange').addEventListener('input',e=>seek(Number(e.target.value)));
+$('copyBtn').addEventListener('click',async()=>{syncURL();try{await navigator.clipboard.writeText(location.href);$('copyBtn').textContent=t('copied');setTimeout(()=>$('copyBtn').textContent=t('copy'),1300);}catch(e){$('copyBtn').textContent=location.href;}});
+window.addEventListener('resize',paintMotion);document.addEventListener('keydown',e=>{if(e.target.closest('input,select,button,textarea'))return;if(e.code==='Space'){e.preventDefault();play();}if(e.code==='ArrowRight')seek(app.step+1);if(e.code==='ArrowLeft')seek(app.step-1);});
+if(!engine.OPS[app.op].algs.includes(app.alg))app.alg=engine.OPS[app.op].algs[0];reset();requestAnimationFrame(frameLoop);
 })();
