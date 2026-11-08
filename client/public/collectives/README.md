@@ -1,65 +1,71 @@
-# CollectiveScope v2
+# CollectiveScope v3 — GPU Collective Communication in AI Datacenters
 
-A minimal, interactive visual explorer of GPU collective communication in AI datacenter networks. **English** is the default UI, with **Korean** available in the top bar.
+**A clean, interactive, bilingual visualizer that displays all GPU rank buffers and all concurrent communication events at once.** Written from scratch with plain HTML, CSS and JavaScript. The initial view is a four-GPU **AllToAll Pairwise** execution across two GPU servers in different racks.
 
-## Features
+## What you see
 
-- 8 collective operations: AllReduce, AllGather, ReduceScatter, AllToAll, Broadcast, Reduce, Gather and Scatter.
-- Conceptual Ring / Binary tree / Pairwise / Direct communication schedules (when applicable).
-- 4 or 8 GPU ranks, and single-ToR / 2-rack / 4-rack illustrated fabrics.
-- A working **Play / Pause / Previous / Next / Restart / Speed** animation engine using `requestAnimationFrame`. Unlike SMIL, movement is tied to the same deterministic application state as the controls; Pause freezes the moving marker.
-- Click a message to follow its **source GPU → ToR → Spine → ToR → destination GPU** route. The selected message is highlighted; others appear as smaller dots.
-- Physical, logical-algorithm and combined views; changes in algorithm, GPU count and topology rebuild the model.
-- Shareable URL query parameters and bilingual explanations.
+1. **GPU memory:** All ranks remain visible. Values are ordinary integers, with sender, destination, and chunk index shown on each colored tile. For AllToAll, each GPU displays an outgoing array and an incoming array.
+2. **Simultaneous transfers:** *Every* logical send in the current round has an animated numbered token. Play moves them together; at the end of the round all recipient buffers update together. Pause freezes the motion; Previous/Next steps through the rounds; slider allows seeking; finish jumps to the result.
+3. **Logical algorithm:** Ring, Binomial Tree, Pairwise and Direct communication schedules appear in their own diagram, with simultaneous moving markers.
+4. **Physical AI DCN:** Switch between one server (local GPU fabric, *no* ToR/Spine path) and two different-rack servers (illustrative GPU fabric → NIC → ToR → Spine → ToR → NIC → GPU fabric). The same current communication events are mapped into the physical diagram.
 
-## Quick start
+This is the meaning of the sample AllToAll numbers for **4 GPUs**:
 
-Open `index.html` directly in a modern browser, or run:
+- GPU 0 starts with `[1, 2, 3, 4]`, one number for GPU 0, 1, 2, 3 respectively.
+- GPU 1 starts with `[5, 6, 7, 8]`.
+- GPU 2 starts with `[9, 10, 11, 12]`.
+- GPU 3 starts with `[13, 14, 15, 16]`.
+- After all pairwise rounds, GPU 0 receives `[1, 5, 9, 13]`, GPU 1 receives `[2, 6, 10, 14]`, GPU 2 receives `[3, 7, 11, 15]`, and GPU 3 receives `[4, 8, 12, 16]`.
+
+## Controls
+
+- Collective: AllToAll, AllReduce, AllGather, ReduceScatter, Broadcast, Reduce, Gather, Scatter.
+- Algorithm: Ring / Tree / Direct (or Pairwise for AllToAll); menu choices depend on the collective.
+- GPU count: 4 or 8, all GPUs always visible.
+- Placement: Intra-server or Inter-server (two server racks).
+- Language: English by default, Korean via upper-right button.
+- Play / Pause / Restart / Previous / Next / speed (0.5×–4×) / seek / final result.
+- Shareable query parameters `op`, `alg`, `gpu`, `placement`, `lang`.
+
+## Scientific scope and caveats
+
+**Deterministic conceptual teaching model — not a faithful execution of NVIDIA NCCL or a packet-level simulator.**
+
+- The operation outputs follow the documented collective semantics. Ring AllReduce is modeled as n-1 ReduceScatter stages followed by n-1 AllGather stages. The Tree is an illustrative **binomial** tree, not necessarily NCCL's runtime-selected tree(s). Direct is a pedagogical communication plan. AllToAll Pairwise uses destination-offset rounds.
+- The physical view demonstrates *logical endpoints and example paths* through a simplified, two-rack leaf-spine topology. A real deployment may have same-ToR servers, multiple NICs, NVLink/NVSwitch or PCIe details, rail-optimized fabrics, multiple channels, routing/ECMP and link contention not represented here.
+- A moving number indicates a **logical chunk transfer**; it is **not** an Ethernet packet, a real link's bytes per second, a NIC trace, or a statement that the implementation overlaps everything in that exact way.
+- Equal time per round is a playback convention, not an observed GPU or network latency.
+
+## Run locally
+
+Open `index.html` directly (all imports are relative, no build required) or host statically:
 
 ```bash
 python3 -m http.server 8000
-# http://localhost:8000/
+# Visit http://localhost:8000
 ```
 
-No build step, API, backend, dependencies or GPU hardware are needed.
-
-## How playback works
-
-The abstract collective scheduler generates rounds (`core.js`). Each round contains logical `from → to` messages. The UI maps each message to an illustrative path across the selected topology. The highlighted packet uses length-weighted interpolation along successive path segments. Both the physical and logical views use the **same** normalized playback progress (`0..1`).
-
-- **Play** starts movement immediately for the current round; when progress reaches 100%, the next round begins automatically.
-- **Pause** freezes the marker at its exact position; Play resumes from there.
-- **Previous/Next**, timeline, Reset and configuration changes reset progress and update the paths immediately.
-- **Select message** or click a transfer pill to inspect a different source and destination.
-- Animation speed changes playback time, not the logical schedule.
-
-## IMPORTANT: Model limitations
-
-This is a **pedagogical, deterministic illustration**, **not** actual NCCL, OMNeT++, or an emulation of a packet-level network. The logical schedules illustrate communication dependencies but do not claim to reproduce the NCCL algorithm/protocol/channel selected in a real run. Topology/route mapping is illustrative and does **not** model NVLink, PCIe, multi-NIC path selection, transport protocols, retransmissions, real time, link contention, packetization, PFC or congestion. A dot represents a logical message, not an actual packet.
-
-For study and research, compare against measured NIC/switch counters and NCCL traces, and label such traces as measured data separately.
-
-## Testing
+## Tests
 
 ```bash
+node --check core.js
 node --check app.js
 node --test test/core.test.js
-python3 test/browser_test.py   # requires playwright Python package and Chromium
+python test/browser_test.py
 ```
 
-The browser test explicitly checks that the packet positions change during Play, freeze on Pause, resume to the next round, and that the interface can switch operations, language, topology and views. It also checks for JavaScript page errors and horizontal overflow in a mobile viewport.
+The browser test uses browser content injection to render the local HTML/CSS/JS in Chromium even when test environments block URL navigation. It tests multiple operation configurations, moving tokens, Pause, Next, final data values, 8-GPU and Korean UI, and mobile overflow.
 
-## GitHub Pages hosting
+## Hosting on GitHub Pages
 
-Standalone static hosting: copy **index.html**, **styles.css**, **core.js**, **app.js** into the site root or into an existing GitHub Pages site's public path (e.g. `client/public/collectives/`). The files intentionally use relative asset paths.
-
-Current existing site integration: `KangYoonLee/KangYoonLee.github.io/client/public/collectives/`. Provided the host's GitHub Pages workflow successfully publishes the Vite `client/public` contents, the expected path is `https://kangyoonlee.github.io/collectives/` (availability must be verified separately).
+This project has no build step. Copy `index.html`, `core.js`, `app.js`, and `styles.css` into the intended public folder, e.g. `client/public/collectives/` in the existing repository `KangYoonLee/KangYoonLee.github.io`. This does not change the root personal homepage. Whether it is *publicly live* depends on the existing GitHub Pages workflow completing successfully.
 
 ## References
 
-- NVIDIA NCCL collective operations: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html
-- OMNeT++ Qtenv visual simulation controls: https://docs.omnetpp.org/userguide/qtenv
+- [NVIDIA NCCL collective semantics](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html)
+- [NVIDIA on topology-aware NCCL algorithms](https://developer.nvidia.com/blog/fast-multi-gpu-collectives-nccl/)
+- [Hyojun's independent GPU communication teaching site](https://hyojun.me/gpu-comm-visualizer/) (inspiration for stepwise numbered-data visualization; no source code copied)
 
 ## License
 
-MIT. Educational visuals and simulator code are independently implemented; no code from OMNeT++ or the referenced GPU communication visualizer is included.
+MIT
