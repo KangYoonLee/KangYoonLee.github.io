@@ -3,53 +3,49 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#ffffff" />
-  <meta name="description" content="CollectiveScope — watch GPU collective messages travel across a datacenter topology and logical algorithms." />
-  <title>CollectiveScope · GPU collective visualizer</title>
+  <meta name="theme-color" content="#f7f9fc" />
+  <meta name="description" content="CollectiveScope: watch all GPUs simultaneously exchange numbered data in Ring, Tree, and Pairwise collectives across intra-server and inter-server fabrics." />
+  <title>CollectiveScope — GPU Collective Communication, Explained</title>
   <link rel="stylesheet" href="./styles.css" />
   <script defer src="./core.js"></script>
   <script defer src="./app.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <div class="top-inner">
-      <div class="identity"><div class="logo" aria-hidden="true"><span></span><span></span><span></span></div><div><strong>CollectiveScope</strong><small data-t="brandTag">GPU collective visualizer</small></div></div>
-      <div class="top-actions">
-        <span class="model-tag" data-t="conceptual">Conceptual simulator</span>
-        <button type="button" id="langBtn" class="light-button" aria-label="Switch language">한국어</button>
-        <a class="github-link" href="https://github.com/KangYoonLee/KangYoonLee.github.io/tree/main/client/public/collectives" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-      </div>
-    </div>
+    <div class="brand"><div class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div><strong>CollectiveScope</strong><span>GPU communication, visualized</span></div></div>
+    <div class="top-actions"><span class="chip subtle" id="modelBadge">Educational model · not NCCL trace</span><button id="langToggle" class="lang-button" type="button" aria-label="Switch language">한국어</button></div>
   </header>
-  <main class="main">
-    <div class="intro"><div><h1 data-t="title">Watch data move, step by step.</h1><p data-t="subtitle">Choose a collective, press Play, and follow a message from GPU to GPU.</p></div><button type="button" id="shareBtn" class="light-button share-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m0 0L7.5 7.5M12 3l4.5 4.5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></svg><span data-t="share">Share setup</span></button></div>
-    <section class="config" aria-label="Simulation configuration">
-      <div class="select-field wide"><label for="op" data-t="collective">Collective</label><select id="op"></select></div>
-      <div class="select-field"><label for="alg" data-t="algorithm">Algorithm</label><select id="alg"></select></div>
-      <div class="select-field tiny"><label for="n" data-t="gpuCount">GPUs</label><select id="n"><option value="4">4</option><option value="8">8</option></select></div>
-      <div class="select-field"><label for="topology" data-t="topology">Topology</label><select id="topology"><option value="single">Single ToR</option><option value="dual">2 racks · Leaf–Spine</option><option value="quad">4 racks · Leaf–Spine</option></select></div>
-      <div class="select-field tiny" id="rootField"><label for="root" data-t="root">Root</label><select id="root"></select></div>
+  <main class="page">
+    <div class="heading"><div><div class="eyebrow" id="eyebrow">LEARN BY WATCHING</div><h1 id="pageTitle">See what every GPU sends and receives.</h1><p id="pageSubtitle">Numbered blocks move simultaneously. Switch between an in-server GPU fabric and a multi-server datacenter network.</p></div><a class="docs-link" target="_blank" rel="noreferrer" href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html"><span id="docsText">NCCL reference</span> <span aria-hidden="true">↗</span></a></div>
+
+    <section class="config-panel" aria-label="Simulation settings">
+      <label class="control"><span data-i18n="operation">Collective</span><select id="opSelect"><option value="alltoall">AllToAll</option><option value="allreduce">AllReduce</option><option value="allgather">AllGather</option><option value="reducescatter">ReduceScatter</option><option value="broadcast">Broadcast</option><option value="reduce">Reduce</option><option value="gather">Gather</option><option value="scatter">Scatter</option></select></label>
+      <label class="control"><span data-i18n="algorithm">Algorithm</span><select id="algSelect"></select></label>
+      <fieldset class="control switcher"><legend data-i18n="gpuCount">GPUs</legend><div class="toggle-group" id="gpuToggle"><button class="selected" type="button" data-gpu="4">4 GPUs</button><button type="button" data-gpu="8">8 GPUs</button></div></fieldset>
+      <fieldset class="control switcher"><legend data-i18n="placement">Placement</legend><div class="toggle-group" id="placementToggle"><button type="button" data-placement="intra">Intra-server</button><button class="selected" type="button" data-placement="inter">Inter-server</button></div></fieldset>
+      <label class="control speed"><span data-i18n="speed">Speed</span><select id="speedSelect"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
     </section>
-    <section class="simulator" aria-label="Collective message animation">
-      <div class="sim-top">
-        <div class="step-heading"><div class="eyebrow"><span class="dot"></span><span data-t="round">CURRENT ROUND</span><span class="step-num" id="stepCount">1 / 3</span></div><h2 id="stepTitle">Pairwise exchange</h2><p id="stepSub">Destination offset +1 · round 1/3</p></div>
-        <div class="view-tabs" role="group" aria-label="View selection"><button type="button" class="active" data-view="physical" data-t="physical">Physical network</button><button type="button" data-view="logical" data-t="logical">Algorithm</button><button type="button" data-view="both" data-t="both">Both</button></div>
+
+    <section class="status-strip"><div><span class="op-icon">↗</span><strong id="opTitle">AllToAll · Pairwise</strong><span id="opDesc">Each GPU sends a different number to each other GPU.</span></div><div class="network-mode" id="networkMode">2 GPU servers · NVLink + NIC + ToR + Spine</div></section>
+
+    <section class="simulation-panel">
+      <div class="section-top"><div><span class="eyebrow" data-i18n="memoryEyebrow">01 / GPU MEMORY</span><h2 data-i18n="memoryTitle">What each GPU holds</h2></div><div class="small-legend"><span><i class="square blue"></i><span data-i18n="owned">data blocks</span></span><span><i class="square green"></i><span data-i18n="updated">newly received</span></span><span><i class="square outline"></i><span data-i18n="empty">not yet received</span></span></div></div>
+      <div id="gpuBoard" class="gpu-board" aria-live="off"></div>
+      <div class="playback">
+        <div class="play-controls"><button type="button" class="icon-button" id="restartBtn" aria-label="Restart" title="Restart">↺</button><button type="button" class="icon-button" id="prevBtn" aria-label="Previous round" title="Previous round">‹</button><button type="button" class="play-button" id="playBtn"><span id="playIcon">▶</span><span id="playText">Play all</span></button><button type="button" class="icon-button" id="nextBtn" aria-label="Next round" title="Next round">›</button></div>
+        <div class="play-stage"><div class="play-stage-label"><span id="stageTitle">Round 1 of 3</span><span id="stageHint">Every GPU sends a different number.</span></div><input id="stepRange" aria-label="Select communication round" type="range" min="0" max="3" value="0" step="1" /><div class="timeline-meta"><span id="stepStart">Start</span><span id="stepEnd">Complete</span></div></div>
+        <button class="text-button" type="button" id="finishBtn">See final result →</button>
       </div>
-      <div class="canvas-grid physical-only" id="canvasGrid">
-        <div class="canvas-panel"><div class="canvas-topline"><span><span class="canvas-symbol">◇</span><span data-t="networkCanvas">Network topology</span></span><span class="hint" id="networkTag">2 RACKS · 2 SPINES</span></div><div class="svg-wrap"><svg id="fabricSvg" role="img" aria-label="Animated physical datacenter network topology" viewBox="0 0 920 480" preserveAspectRatio="xMidYMid meet"></svg></div><div class="canvas-caption"><span><i class="legend-packet"></i><span data-t="focusMsg">Selected message</span></span><span><i class="legend-line"></i><span data-t="pathKey">Selected route</span></span><span class="caption-right" data-t="notNCCL">Illustrative paths · Not an NCCL trace</span></div></div>
-        <div class="canvas-panel logical-panel"><div class="canvas-topline"><span><span class="canvas-symbol">↗</span><span data-t="logicalCanvas">Logical communication</span></span><span class="hint" id="logicalTag">PAIRWISE</span></div><div class="svg-wrap"><svg id="logicalSvg" role="img" aria-label="Animated collective logical communication" viewBox="0 0 530 480" preserveAspectRatio="xMidYMid meet"></svg></div><div class="canvas-caption"><span><i class="legend-packet"></i><span data-t="logicalKey">Moving message</span></span></div></div>
-      </div>
-      <div class="playback"><div class="transport"><button type="button" id="resetBtn" class="transport-icon" title="Restart" aria-label="Restart"><svg viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2 6M4 4v7h7"/></svg></button><button type="button" id="prevBtn" class="transport-icon" title="Previous round" aria-label="Previous round"><svg viewBox="0 0 24 24"><path d="M13 5l-7 7 7 7M7 12h12"/></svg></button><button type="button" id="playBtn" class="play-primary"><span id="playGlyph">▶</span><span id="playText">Play</span></button><button type="button" id="nextBtn" class="transport-icon" title="Next round" aria-label="Next round"><svg viewBox="0 0 24 24"><path d="M11 5l7 7-7 7M17 12H5"/></svg></button></div><div class="timeline-area"><input type="range" id="scrub" aria-label="Simulation round" min="0" max="2" step="1" value="0"/><span id="timelineText">1 / 3</span></div><div class="speed-field"><label for="speed" data-t="speed">Speed</label><select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option></select></div></div>
-      <div class="round-progress"><div id="roundProgress"></div></div>
-      <div class="status-bar"><span class="status-idle" id="playStatus">Ready — press Play</span><span id="messageCount">4 messages in this round</span></div>
     </section>
-    <section class="details">
-      <div class="detail-card route-detail"><div class="detail-title"><h3 data-t="follow">Follow a message</h3><span class="small-badge" id="eventCount">1 of 4</span></div><label for="eventSelect" class="small-label" data-t="message">Message</label><select id="eventSelect"></select><div class="route-text" id="routeText" aria-live="polite">GPU 0 → ToR 0 → ToR 1 → GPU 1</div><div class="hop-status"><span data-t="currentHop">Current hop</span><strong id="hopText">GPU 0 → ToR 0</strong></div><p class="detail-foot" data-t="focusHint">One highlighted message is shown in blue. Other transfers in this round appear as smaller dots.</p></div>
-      <div class="detail-card"><div class="detail-title"><h3 data-t="whatsHappening">What happens this round?</h3><span class="small-badge" id="stepBadge">Round 1</span></div><p class="explain" id="stepExplain"></p><div class="list-heading"><span data-t="transfers">Transfers</span><span id="transferCount">4 total</span></div><div class="transfer-grid" id="transferList"></div></div>
-    </section>
-    <details class="learn"><summary data-t="learnTitle">What is this collective doing?</summary><p id="opExplain"></p><p data-t="modelWarning">These are simplified teaching schedules and illustrative routes. This is not OMNeT++, an NCCL trace, or a packet-level/performance simulation. Link scheduling, NVLink/PCIe, queues and congestion are not modeled.</p><a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html" target="_blank" rel="noopener noreferrer" data-t="nvidiaDocs">Read NVIDIA collective documentation ↗</a></details>
-    <footer><span>CollectiveScope</span><span data-t="footerNote">Made for understanding AI datacenter communication.</span></footer>
+
+    <div class="visual-grid">
+      <section class="transfer-panel"><div class="section-top tight"><div><span class="eyebrow" data-i18n="transferEyebrow">02 / SIMULTANEOUS TRANSFERS</span><h2 data-i18n="transferTitle">All GPUs communicate together</h2></div><span class="count-chip" id="transferCount">4 messages</span></div><p class="panel-note" id="transferNote">Watch the colored numbers travel from each sender to its receiver at the same time.</p><div id="transferGrid" class="transfer-grid"></div><p class="micro-note" id="transferFooter">Each moving number is a logical data chunk, not an Ethernet packet.</p></section>
+      <section class="logical-panel"><div class="section-top tight"><div><span class="eyebrow" data-i18n="logicalEyebrow">03 / LOGICAL ALGORITHM</span><h2 data-i18n="logicalTitle">Who talks to whom?</h2></div><span class="count-chip" id="logicalName">Pairwise</span></div><p class="panel-note" id="logicalNote">Arrows show the participating GPU pairs in this round.</p><svg id="logicalSvg" class="logical-svg" role="img" aria-label="Communication graph of logical GPU ranks" viewBox="0 0 420 254"></svg><div class="legend-row"><span><i class="line-icon active"></i><span data-i18n="thisRound">This round</span></span><span><i class="line-icon"></i><span data-i18n="logicalLink">Logical connection</span></span></div></section>
+    </div>
+
+    <section class="physical-panel"><div class="section-top"><div><span class="eyebrow" data-i18n="physicalEyebrow">04 / AI DATACENTER VIEW</span><h2 data-i18n="physicalTitle">Where does that traffic travel?</h2></div><div class="count-chip" id="networkCount">2 cross-server · 2 local</div></div><p class="panel-note" id="physicalNote">Within a server, GPU traffic stays on the local fabric. Between servers, it crosses NICs and the network switches.</p><svg id="physicalSvg" class="physical-svg" role="img" aria-label="Schematic physical GPU network with animated communication markers" viewBox="0 0 960 270"></svg><div class="physical-legend"><span><i class="line-icon active"></i><span data-i18n="activeTraffic">Active path</span></span><span><i class="line-icon"></i><span data-i18n="inactiveLink">Inactive link</span></span><span class="legend-hint" id="networkFootnote">Schematic routes; no congestion, latency, PFC or NCCL runtime simulation.</span></div></section>
+
+    <div class="footnote"><strong data-i18n="modelTitle">Model scope</strong> <span id="modelFootnote">Discrete rounds and sample values illustrate the collective semantics. The physical path is a simplified teaching example, not a measurement of real NCCL traffic or a physical network simulator.</span><span class="footnote-links"><a href="https://github.com/KangYoonLee/KangYoonLee.github.io/tree/main/client/public/collectives" target="_blank" rel="noreferrer">GitHub ↗</a><button type="button" id="copyBtn">Copy link ↗</button></span></div>
   </main>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
