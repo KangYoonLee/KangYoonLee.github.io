@@ -34,3 +34,6 @@ Source: `client/ai-dcn-collectives-src/` in `KangYoonLee/KangYoonLee.github.io`.
 - Allow arbitrary rank-to-server and GPU-to-NIC mapping, multiple NICs, same-rack vs cross-rack ECMP.
 - MoE AllToAllV skew and traffic matrices with uneven payloads, plus hotspot/capacity exercises.
 - Parse actual NCCL Inspector JSON and time-aligned NIC counters, distinguishing observed measurements from deterministic example traffic.
+
+## Live Network Lens (2026-11-08)
+The Network Lens now subscribes to engine animation ticks. It shows a moving **animated progress / scheduled payload** ratio, with in-progress per-GPU TX/RX, traffic matrix and modeled NIC TX/RX. Its progress is interpolated from marker positions, **not measured traffic counters or packet-level bytes**. The scheduled serialization floor remains a fixed theoretical model bound. In AllToAll's one large logical round, progress now visibly changes during playback.

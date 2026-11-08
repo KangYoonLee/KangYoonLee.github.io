@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {summarize,chunkCount,nicSerializationFloorMs,makeTransferCSV,serverOf} from '../src/engine/insights.mjs';
+import {summarize,summarizeProgress,chunkCount,nicSerializationFloorMs,makeTransferCSV,serverOf} from '../src/engine/insights.mjs';
 test('4-GPU AllToAll has 12 directed transfers with 8 cross-server',()=>{
  const t=[];for(let src=0;src<4;src++)for(let dst=0;dst<4;dst++)if(src!==dst)t.push({src,dst,ci_src:dst,ci_dst:src});
  const s=summarize([{ph:'AllToAll',t}],4,4,'inter',1);
@@ -23,4 +23,35 @@ test('100G NIC serialization floor adds round peaks',()=>{
 test('CSV includes source, destination, and path type',()=>{
  const csv=makeTransferCSV([{ph:'demo',t:[{src:0,dst:2,ci_src:2,ci_dst:0}]}],4,4,'inter',1);
  assert.match(csv,/inter-server/);assert.match(csv,/"0","2"/);
+});
+
+test('animation progress starts at zero, moves, pauses and completes',()=>{
+  const steps=[{ph:'AllToAll Exchange',t:[
+    {src:0,dst:2,ci_src:2,ci_dst:0},
+    {src:0,dst:3,ci_src:3,ci_dst:0},
+    {src:2,dst:0,ci_src:0,ci_dst:2},
+    {src:3,dst:0,ci_src:0,ci_dst:3}
+  ]}];
+  const idle=summarizeProgress(steps,4,4,'inter',1,-1,0,'idle','physical','whole');
+  const halfway=summarizeProgress(steps,4,4,'inter',1,0,.5,'running','physical','whole');
+  const paused=summarizeProgress(steps,4,4,'inter',1,0,.5,'paused','physical','whole');
+  const done=summarizeProgress(steps,4,4,'inter',1,1,0,'done','physical','whole');
+  assert.equal(idle.allMiB,0);
+  assert.ok(halfway.allMiB>0 && halfway.allMiB<4);
+  assert.equal(halfway.allMiB,paused.allMiB);
+  assert.equal(done.allMiB,4);
+  assert.equal(done.interMiB,4);
+  assert.equal(done.messages,4);
+  assert.equal(done.matrix[0][2],1);
+});
+test('current-round progress resets when next round begins; whole accumulates',()=>{
+ const steps=[
+  {t:[{src:0,dst:2,ci:0}]},
+  {t:[{src:1,dst:3,ci:1}]}
+ ];
+ const current=summarizeProgress(steps,4,4,'inter',1,1,0,'running','physical','step');
+ const whole=summarizeProgress(steps,4,4,'inter',1,1,0,'running','physical','whole');
+ assert.equal(current.allMiB,0);
+ assert.equal(whole.allMiB,1);
+ assert.equal(whole.messages,1);
 });

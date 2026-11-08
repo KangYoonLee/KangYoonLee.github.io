@@ -78,6 +78,14 @@ export default function App() {
 
   const stateRef = useRef(createInitialState(init));
   const afIdRef = useRef(null);
+  const lastLensFrameRef=useRef(0);
+  const notifyLens=useCallback((force=false)=>{
+    const now=performance.now();
+    if(stateRef.onLensFrame && (force || now-lastLensFrameRef.current>=85)){
+      lastLensFrameRef.current=now;
+      stateRef.onLensFrame();
+    }
+  },[]);
 
   const initEngine = useCallback((newOp, newAlg, newG, newC, newSpeedPos) => {
     if (afIdRef.current) { cancelAnimationFrame(afIdRef.current); afIdRef.current = null; }
@@ -168,6 +176,7 @@ export default function App() {
         if (s.curStep < s.steps.length) s.snapInfo = snap(s.gpus, s.steps, s.C, s.curStep);
         setPhase(s.phase);
         forceUpdate((n) => n + 1);
+        notifyLens(true);
         draw();
         flashDecay();
         return;
@@ -176,8 +185,9 @@ export default function App() {
       forceUpdate((n) => n + 1);
     }
     draw();
+    notifyLens();
     afIdRef.current = requestAnimationFrame(tick);
-  }, [draw, flashDecay]);
+  }, [draw, flashDecay, notifyLens]);
 
   const resetData = useCallback(() => {
     const s = stateRef.current;

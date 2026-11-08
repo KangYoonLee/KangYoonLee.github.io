@@ -2,20 +2,21 @@
 export const serverOf=(rank,G,placement)=>placement==='intra'?0:Math.floor(rank/Math.ceil(G/2));
 export const chunkCount=(t,C)=>t.ci===-1?C:1;
 
-export function summarize(steps,G,C,placement='inter',chunkMiB=1){
+export function summarize(steps,G,C,placement='inter',chunkMiB=1,weightForTransfer=null){
   const rounds=(steps||[]).map((step,index)=>{
     const matrix=Array.from({length:G},()=>Array(G).fill(0));
     const ranks=Array.from({length:G},(_,rank)=>({rank,tx:0,rx:0,networkTx:0,networkRx:0,server:serverOf(rank,G,placement)}));
     const servers=Array.from({length:placement==='intra'?1:2},(_,id)=>({id,tx:0,rx:0,networkTx:0,networkRx:0}));
     let allMiB=0,interMiB=0,intraMiB=0,messages=0;
-    for(const t of step.t||[]){
+    for(const [transferIndex,t] of (step.t||[]).entries()){
       if(t.src===t.dst)continue;
-      const volume=chunkMiB*chunkCount(t,C),src=serverOf(t.src,G,placement),dst=serverOf(t.dst,G,placement);
+      const fraction=weightForTransfer?Math.max(0,Math.min(1,weightForTransfer(index,transferIndex,step.t.length))):1;
+      const volume=chunkMiB*chunkCount(t,C)*fraction,src=serverOf(t.src,G,placement),dst=serverOf(t.dst,G,placement);
       const cross=src!==dst;
       matrix[t.src][t.dst]+=volume;
       ranks[t.src].tx+=volume;ranks[t.dst].rx+=volume;
       servers[src].tx+=volume;servers[dst].rx+=volume;
-      allMiB+=volume;messages++;
+      allMiB+=volume;if(fraction>=1-1e-9)messages++;
       if(cross){interMiB+=volume;ranks[t.src].networkTx+=volume;ranks[t.dst].networkRx+=volume;servers[src].networkTx+=volume;servers[dst].networkRx+=volume;}
       else intraMiB+=volume;
     }
@@ -52,4 +53,37 @@ export function makeTransferCSV(steps,G,C,placement,chunkMiB){
   }));
   const escape=value=>'"'+String(value).replaceAll('"','""')+'"';
   return rows.map(r=>r.map(escape).join(',')).join('\n')+'\n';
+}
+
+/*
+ * Estimates animated volume only. A floating value of 0.5 means a marker
+ * traversed half its idealized route; it is NOT a wire byte counter.
+ * The Physical view follows the existing per-transfer stagger in dcn.js.
+ * The Logical AllToAll view follows the upstream marker stagger.
+ */
+export function animationFraction(anim,index,count,view='physical',allToAll=false){
+  const v=Math.max(0,Math.min(1,Number(anim)||0));
+  if(v===1)return 1;
+  if(count<=1)return v;
+  let stagger=0;
+  if(view==='physical')stagger=Math.min(.06,.42/Math.max(1,count-1));
+  else if(allToAll)stagger=Math.min(.08,.5/Math.max(1,count-1));
+  if(!stagger)return v;
+  const travel=Math.max(.1,1-(count-1)*stagger);
+  return Math.max(0,Math.min(1,(v-index*stagger)/travel));
+}
+
+export function summarizeProgress(steps,G,C,placement,chunkMiB,curStep,anim,phase,view='physical',scope='step'){
+  const count=steps.length;
+  const selected=count?Math.max(0,Math.min(count-1,curStep<0?0:curStep)):0;
+  const weights=(round,ti,length)=>{
+    if(scope!=='whole'&&round!==selected)return 0;
+    if(phase==='done')return 1;
+    if(phase==='idle'||curStep<0)return 0;
+    if(round<curStep)return 1;
+    if(round>curStep)return 0;
+    const allToAll=Boolean(steps[round]?.t?.[0]?.ci_src!==undefined);
+    return animationFraction(anim,ti,length,view,allToAll);
+  };
+  return summarize(steps,G,C,placement,chunkMiB,weights).whole;
 }

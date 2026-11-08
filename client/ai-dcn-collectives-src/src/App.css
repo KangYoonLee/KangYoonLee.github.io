@@ -223,3 +223,12 @@ body{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI'
 .cs-caveat{color:#64748b;background:#f8fafc;border-left:3px solid #94a3b8;font-size:10px;padding:9px 11px;margin-top:13px;line-height:1.6}
 @media(max-width:900px){.cs-header{padding:9px 12px}.cs-brandtext small{font-size:9px}.cs-lens{max-width:45vw;width:330px}}
 @media(max-width:768px){.cs-header{height:55px}.cs-brandtext strong{font-size:16px}.cs-brandtext small{display:none}.cs-tabs button{font-size:11px;padding:8px 10px}.cs-lens{max-width:none;width:100%;height:40vh;max-height:40vh;border-left:0;border-top:1px solid #e2e8f0}.cs-lens-scroll{padding:10px 14px}.cs-lens-top{padding:10px 14px}.cs-lens-top h2{font-size:17px}.cs-lens-top small{display:none}.sb{border-top:1px solid #dbe3ee}.sb-toggle{background:#e2e8f0;color:#475569}.m-playbar{background:#f8fafc;border-top-color:#cbd5e1}.m-playbar .b{font-size:13px}}
+
+/* Animated Network Lens: progress from the same engine frame as canvas dots. */
+.cs-live-panel{background:#e9f2ff;border:1px solid #cbdffb;border-radius:11px;padding:11px 12px;margin:12px 0 11px;color:#1e3a5f}
+.cs-live-heading{display:flex;align-items:center;justify-content:space-between;font-size:12px;gap:8px}
+.cs-live-heading b{font-size:16px;font-variant-numeric:tabular-nums;color:#175ac6}
+.cs-progress-track{height:9px;background:#cbdcf5;border-radius:20px;overflow:hidden;margin-top:9px}
+.cs-progress-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#0d5bd9);border-radius:20px;transition:width 80ms linear}
+.cs-live-panel p{color:#5b7294;font-size:10px;margin-top:7px;line-height:1.45}
+.cs-stat strong{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}

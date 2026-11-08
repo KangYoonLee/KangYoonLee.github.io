@@ -1,5 +1,5 @@
-import React,{useMemo,useState} from 'react';
-import {summarize,nicSerializationFloorMs,makeTransferCSV} from '../engine/insights.mjs';
+import React,{useEffect,useMemo,useState} from 'react';
+import {summarize,summarizeProgress,nicSerializationFloorMs,makeTransferCSV} from '../engine/insights.mjs';
 
 const T={
  en:{title:'Network Lens',subtitle:'Model-derived — not measured',scope:'Traffic interval',step:'Current round',whole:'Full collective',payload:'Payload per chunk',bandwidth:'NIC line rate',logical:'Logical payload',inter:'Inter-server payload',intra:'Intra-server payload',messages:'Transfers',ranks:'Per-GPU traffic',matrix:'GPU-to-GPU traffic matrix',links:'Modeled NIC demand',floor:'Idealized serialization floor',no:'No inter-server NIC traffic in this scenario.',export:'Export transfer schedule (CSV)',note:'Teaching assumptions: equal payload per chunk, concurrent sends within each logical round. Excludes packet headers, transport overhead, retransmissions, real NCCL channel/protocol selection, and queue contention.',floorNote:'Lower bound = busiest modeled NIC-direction bytes divided by selected line rate; for a full collective, round bounds are summed. Not a prediction of NCCL duration.',tx:'TX',rx:'RX',server:'Server',route:'Same-server transfers use GPU fabric; cross-server transfers use a NIC. Actual hardware routing varies.',preview:'First round preview',eyebrow:'AI DCN / MODEL INSPECTOR'},
@@ -12,10 +12,18 @@ function Stat({label,value}){return <div className="cs-stat"><span>{label}</span
 export default function NetworkLens({stateRef,lang}){
  const s=stateRef.current;
  const [payload,setPayload]=useState(1),[rate,setRate]=useState(100),[scope,setScope]=useState('step');
+ const [,setFrame]=useState(0);
+ useEffect(()=>{
+   const onFrame=()=>setFrame(n=>n+1);
+   stateRef.onLensFrame=onFrame;
+   return ()=>{if(stateRef.onLensFrame===onFrame)delete stateRef.onLensFrame;};
+ },[stateRef]);
  const t=T[lang]||T.en;
  const data=useMemo(()=>summarize(s.steps,s.G,s.C,s.placement,payload),[s.steps,s.G,s.C,s.placement,payload]);
  const index=Math.max(0,Math.min(s.curStep<0?0:s.curStep,data.rounds.length-1));
  const current=scope==='whole'?data.whole:(data.rounds[index]||data.whole);
+ const live=summarizeProgress(s.steps,s.G,s.C,s.placement,payload,s.curStep,s.anim,s.phase,s.view,scope);
+ const percent=current.allMiB>0?Math.max(0,Math.min(100,live.allMiB/current.allMiB*100)):(s.phase==='done'?100:0);
  const floor=nicSerializationFloorMs(scope==='whole'?data.rounds:[current],rate);
  const matrixMax=Math.max(1,...current.matrix.flat());
  const rankMax=Math.max(1,...current.ranks.flatMap(r=>[r.tx,r.rx]));
@@ -48,35 +56,40 @@ export default function NetworkLens({stateRef,lang}){
     </label>
    </div>
    <p className="cs-step-meta">{scope==='whole'?data.rounds.length+' rounds':(s.curStep<0?t.preview:t.step)+' '+(index+1)+' / '+data.rounds.length} · {current.label}</p>
+   <div className="cs-live-panel" aria-live="off">
+      <div className="cs-live-heading"><strong>{lang==='ko'?'애니메이션 진행률':'Animation progress'}</strong><b>{percent.toFixed(0)}%</b></div>
+      <div className="cs-progress-track"><div className="cs-progress-fill" style={{width:percent+'%'}}/></div>
+      <p>{lang==='ko'?'진행된 모델 전송량 / 예정된 전송량':'Modeled progress / scheduled payload'} · {s.phase==='paused'?(lang==='ko'?'일시정지':'Paused'):s.phase==='running'?(lang==='ko'?'재생 중':'Playing'):s.phase==='done'?(lang==='ko'?'완료':'Complete'):(lang==='ko'?'재생 대기':'Ready')}</p>
+   </div>
    <div className="cs-statgrid">
-    <Stat label={t.logical} value={volume(current.allMiB)}/>
-    <Stat label={t.inter} value={volume(current.interMiB)}/>
-    <Stat label={t.intra} value={volume(current.intraMiB)}/>
-    <Stat label={t.messages} value={String(current.messages)}/>
+    <Stat label={t.logical} value={volume(live.allMiB)+' / '+volume(current.allMiB)}/>
+    <Stat label={t.inter} value={volume(live.interMiB)+' / '+volume(current.interMiB)}/>
+    <Stat label={t.intra} value={volume(live.intraMiB)+' / '+volume(current.intraMiB)}/>
+    <Stat label={t.messages} value={live.messages+' / '+current.messages}/>
    </div>
    <section className="cs-lens-section"><h3>{t.ranks}</h3>
     <div className="cs-key"><i className="cs-swatch cs-swatch-tx"/> {t.tx} <i className="cs-swatch cs-swatch-rx"/> {t.rx}</div>
-    {current.ranks.map(r=><div className="cs-rank" key={r.rank}>
+    {live.ranks.map(r=><div className="cs-rank" key={r.rank}>
      <div className="cs-rank-h"><b>GPU {r.rank}</b><span>{volume(r.tx)} / {volume(r.rx)}</span></div>
      <div className="cs-rank-track"><span className="cs-rank-tx" style={{width:(r.tx/rankMax*100)+'%'}}/><span className="cs-rank-rx" style={{width:(r.rx/rankMax*100)+'%'}}/></div>
     </div>)}
    </section>
    <section className="cs-lens-section"><h3>{t.matrix}</h3>
     <div className="cs-matrix-scroll"><table className="cs-matrix"><thead><tr><th>TX / RX</th>{current.ranks.map(r=><th key={r.rank}>G{r.rank}</th>)}</tr></thead>
-     <tbody>{current.matrix.map((r,i)=><tr key={i}><th>G{i}</th>
+     <tbody>{live.matrix.map((r,i)=><tr key={i}><th>G{i}</th>
       {r.map((v,j)=><td key={j} title={'GPU '+i+' → GPU '+j+': '+volume(v)} style={{background:v?'rgba(37,99,235,'+(.10+.72*v/matrixMax)+')':'transparent',color:v/matrixMax>.52?'#fff':'#334155'}}>{v?fmt(v):'—'}</td>)}
      </tr>)}</tbody></table></div>
     <p className="cs-note">{t.route}</p>
    </section>
    <section className="cs-lens-section"><h3>{t.links}</h3>
-    {current.interMiB===0?<p className="cs-note">{t.no}</p>:current.servers.map(server=><div className="cs-server" key={server.id}>
+    {current.interMiB===0?<p className="cs-note">{t.no}</p>:live.servers.map(server=><div className="cs-server" key={server.id}>
       <b>{t.server} {server.id}</b><span>NIC ↑ {volume(server.networkTx)}</span><span>NIC ↓ {volume(server.networkRx)}</span>
     </div>)}
-    <div className="cs-floor"><span>{t.floor}</span><strong>{floor===null?'—':fmt(floor)+' ms'}</strong></div>
+    <div className="cs-floor"><span>{t.floor} ({lang==='ko'?'예정량 기준':'scheduled'})</span><strong>{floor===null?'—':fmt(floor)+' ms'}</strong></div>
     <p className="cs-note">{t.floorNote}</p>
    </section>
    <button type="button" className="cs-export" onClick={exportCSV}>{t.export} ↓</button>
-   <p className="cs-caveat">{t.note}</p>
+   <p className="cs-caveat">{lang==='ko'?'진행된 양은 점의 위치로 계산한 시각화 모델이며 실제 NIC byte counter 또는 실측 throughput이 아닙니다.':'Progress is inferred from dot positions, not real NIC byte counters or observed throughput.'} {t.note}</p>
   </div>
  </aside>;
 }
